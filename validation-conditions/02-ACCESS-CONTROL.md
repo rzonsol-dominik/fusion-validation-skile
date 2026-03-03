@@ -46,10 +46,10 @@ Weryfikacja systemu rol, uprawnien i hierarchii w IporFusionAccessManager.
 - **Uwagi**: KRYTYCZNE - admin moze zmienic WSZYSTKIE role. Musi byc multisig!
 
 ### AC-002: ADMIN_ROLE - brak nieautoryzowanych
-- **Warunek**: ADMIN_ROLE NIE jest przypisany do nieoczekiwanych adresow
-- **Jak sprawdzic**: Sprawdz logi `RoleGranted` dla roleId=0
-- **Oczekiwany wynik**: Tylko oczekiwane adresy maja ADMIN_ROLE
-- **Uwagi**: Kazdy nieautoryzowany admin to krytyczne zagrozenie
+- **Warunek**: ADMIN_ROLE NIE jest przypisany do ZADNEGO adresu na produkcji
+- **Jak sprawdzic**: Sprawdz logi `RoleGranted` i `RoleRevoked` dla roleId=0. Sprawdz czy po inicjalizacji ADMIN_ROLE zostal odwolany
+- **Oczekiwany wynik**: **ZERO holderow ADMIN_ROLE** - docelowo zaden adres nie powinien posiadac ADMIN_ROLE
+- **Uwagi**: CRITICAL - Jakikolwiek adres z ADMIN_ROLE na produkcji to sytuacja niepozadana i musi byc zgloszona jako CRITICAL. ADMIN moze zmienic WSZYSTKIE role, wlacznie z TECH_*, co daje pelna kontrole nad vaultem
 
 ### AC-003: OWNER_ROLE Assignment
 - **Warunek**: OWNER_ROLE jest przypisany do wlasciwych adresow
@@ -68,6 +68,12 @@ Weryfikacja systemu rol, uprawnien i hierarchii w IporFusionAccessManager.
 - **Jak sprawdzic**: `AccessManager.hasRole(200, address)`
 - **Oczekiwany wynik**: Oczekiwane adresy alpha executors
 - **Uwagi**: Alpha moze wykonywac dowolne fuse actions - musi byc zaufany
+
+### AC-005b: Role Separation (AC-001 - AC-005)
+- **Warunek**: Zaden adres NIE posiada wiecej niz jednej roli sposrod: ADMIN_ROLE, OWNER_ROLE, GUARDIAN_ROLE, ATOMIST_ROLE, ALPHA_ROLE
+- **Jak sprawdzic**: Dla kazdego holdera rol AC-001-AC-005 sprawdz czy nie posiada zadnej innej roli z tej grupy
+- **Oczekiwany wynik**: Kazdy adres ma dokladnie 1 role (lub 0 w przypadku ADMIN)
+- **Uwagi**: CRITICAL - Laczenie rol lamie zasade separation of concerns i umozliwia eskalacje uprawnien. Np. adres z OWNER+ALPHA moze sam sobie nadac role i wykonywac operacje
 
 ### AC-006: TECH_PLASMA_VAULT_ROLE
 - **Warunek**: TECH_PLASMA_VAULT_ROLE jest przypisany TYLKO do adresu PlasmaVault
@@ -221,17 +227,20 @@ Weryfikacja systemu rol, uprawnien i hierarchii w IporFusionAccessManager.
 - **Oczekiwany wynik**: false (jesli vault powinien byc aktywny)
 - **Uwagi**: Guardian moze zamknac vault w emergency
 
-### AC-014: TECH roles - Immutability
-- **Warunek**: Role TECH_* sa przypisane TYLKO do systemowych kontraktow
-- **Jak sprawdzic**: Sprawdz kazdego holdera rol TECH_*
+### AC-014: TECH roles - Immutability and Correctness
+- **Warunek**: Role TECH_* sa przypisane TYLKO do systemowych kontraktow I te kontrakty sa poprawnymi komponentami stacku vaulta
+- **Jak sprawdzic**: Dla kazdej roli TECH_*:
+  1. Sprawdz holdera roli (kto ja posiada)
+  2. Zweryfikuj ze holder jest poprawnym kontraktem stacku vaulta (nie obcym adresem)
+  3. Sprawdz ze holder jest powiazany z TYM vaultem (nie innym)
 - **Oczekiwany wynik**:
-  - TECH_PLASMA_VAULT_ROLE → tylko PlasmaVault
-  - TECH_WITHDRAW_MANAGER_ROLE → tylko WithdrawManager
-  - TECH_CONTEXT_MANAGER_ROLE → tylko ContextManager
-  - TECH_PERFORMANCE_FEE_MANAGER_ROLE → tylko FeeManager
-  - TECH_MANAGEMENT_FEE_MANAGER_ROLE → tylko FeeManager
-  - TECH_REWARDS_CLAIM_MANAGER_ROLE → tylko RewardsClaimManager
-- **Uwagi**: Te role nie powinny byc nigdy reassignowane
+  - TECH_PLASMA_VAULT_ROLE (3) → holder == adres TEGO PlasmaVault
+  - TECH_WITHDRAW_MANAGER_ROLE (6) → holder == WithdrawManager TEGO vaulta (zgodny z vault storage)
+  - TECH_CONTEXT_MANAGER_ROLE (5) → holder == ContextManager TEGO vaulta
+  - TECH_PERFORMANCE_FEE_MANAGER_ROLE (400) → holder == FeeManager TEGO vaulta (zgodny z getPerformanceFeeData().feeAccount)
+  - TECH_MANAGEMENT_FEE_MANAGER_ROLE (500) → holder == FeeManager TEGO vaulta (zgodny z getManagementFeeData().feeAccount)
+  - TECH_REWARDS_CLAIM_MANAGER_ROLE (601) → holder == RewardsClaimManager TEGO vaulta (zgodny z getRewardsClaimManagerAddress())
+- **Uwagi**: CRITICAL jesli holder nie zgadza sie z adresem zapisanym w vaulcie. Te role nie powinny byc nigdy reassignowane do innych kontraktow
 
 ### AC-015: FUSE_MANAGER_ROLE Assignment
 - **Warunek**: FUSE_MANAGER_ROLE przypisany do oczekiwanych adresow
@@ -250,16 +259,23 @@ Weryfikacja systemu rol, uprawnien i hierarchii w IporFusionAccessManager.
 ## MEDIUM
 
 ### AC-020: ContextManager Approved Targets
-- **Warunek**: Jesli ContextManager jest uzywany - approved targets sa poprawne
-- **Jak sprawdzic**: `ContextManager.getApprovedTargets()`
-- **Oczekiwany wynik**: Tylko oczekiwane targety
+- **Warunek**: Jesli ContextManager jest uzywany - approved targets to TYLKO kontrakty ze stacku danego vaulta
+- **Jak sprawdzic**: `ContextManager.getApprovedTargets()` → lista adresow. Kazdy adres musi byc jednym z: PlasmaVault, WithdrawManager, FeeManager, RewardsClaimManager, PriceOracleMiddleware lub PriceOracleMiddlewareManager tego vaulta
+- **Oczekiwany wynik**: Tylko adresy kontraktow nalezacych do stacku tego vaulta. Zaden obcy adres
+- **Uwagi**: Approved target spoza stacku vaulta = potencjalna eskalacja uprawnien przez context manipulation
 
 ### AC-021: AccessManager Initialization
 - **Warunek**: AccessManager jest zainicjalizowany (nie mozna ponownie)
 - **Jak sprawdzic**: Sprobuj wywolac `initialize()` - powinno zrevertowac
 - **Oczekiwany wynik**: Revert
 
-### AC-022: Pre-Hooks Configuration
-- **Warunek**: Pre-hooks sa skonfigurowane poprawnie (jesli uzywane)
-- **Jak sprawdzic**: Odczyt pre-hooks mappingu z vault
-- **Oczekiwany wynik**: Poprawne implementacje dla wymaganych selektorow
+### AC-022: Pre-Hooks Configuration and Origin
+- **Warunek**: Pre-hooks sa skonfigurowane poprawnie I ich kontrakty pochodza z zaufanego zrodla
+- **Jak sprawdzic**:
+  1. Odczyt pre-hooks mappingu z vault (selector → implementation)
+  2. Dla kazdego pre-hook kontraktu sprawdz:
+     - Czy kod jest zweryfikowany na block explorerze
+     - Czy kontrakt zostal zdeployowany przez IPOR deployer (sprawdz tx deployer address)
+     - Lub czy kod kontraktu odpowiada kodowi z repozytorium ipor-fusion (porownaj bytecode)
+- **Oczekiwany wynik**: Wszystkie pre-hook implementacje sa znanymi kontraktami z repo IPOR Fusion, zdeployowanymi przez zaufany deployer
+- **Uwagi**: Pre-hook wykonywany jest PRZED kazda operacja vaulta. Obcy/niezweryfikowany pre-hook moze blokowac lub manipulowac operacjami
