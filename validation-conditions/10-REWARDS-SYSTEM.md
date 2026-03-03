@@ -89,14 +89,29 @@ PlasmaVault (underlying token balance)
 
 ### RW-014: Reward Fuse Protocol Match
 - **Warunek**: Reward fuses odpowiadaja protokolom uzywanym przez vault
-- **Jak sprawdzic**: Porownaj reward fuses z aktywnymi marketami:
-  - Aave market → potrzebny Aave reward claim fuse
-  - Compound market → potrzebny CompoundV3ClaimFuse
-  - Morpho market → potrzebny MorphoClaimFuse
-  - Curve gauge → potrzebny CurveGaugeTokenClaimFuse
-  - Aerodrome → potrzebny AerodromeGaugeClaimFuse
+- **Jak sprawdzic**: Porownaj reward fuses z aktywnymi marketami wedlug tabeli:
+
+| Market / Protokol | Wymagany Reward Claim Fuse |
+|-------------------|---------------------------|
+| Aave V3/V3 Lido | (Aave rewards via Merkl lub dedykowany) |
+| Compound V3 | CompoundV3ClaimFuse |
+| Morpho | MorphoClaimFuse |
+| Curve gauge | CurveGaugeTokenClaimFuse |
+| Aerodrome | AerodromeGaugeClaimFuse |
+| Aerodrome Slipstream | AreodromeSlipstreamGaugeClaimFuse |
+| Euler V2 | RewardEulerTokenClaimFuse |
+| Fluid Instadapp | FluidInstadappClaimFuse lub FluidProofClaimFuse |
+| Gearbox V3 | GearboxV3FarmDTokenClaimFuse |
+| Merkl (uniwersalny) | MerklClaimFuse |
+| Moonwell | MoonwellClaimFuse |
+| Ramses | RamsesClaimFuse |
+| Stake DAO V2 | StakeDaoV2ClaimFuse |
+| Syrup | SyrupClaimFuse |
+| Velodrome Superchain | VelodromeSuperchainGaugeClaimFuse |
+| Velodrome Slipstream | VelodromeSuperchainSlipstreamGaugeClaimFuse |
+
 - **Oczekiwany wynik**: Kazdy market z rewards ma odpowiedni claim fuse
-- **Uwagi**: Brak claim fuse = rewards nie sa claimowane (utrata wartosci)
+- **Uwagi**: Brak claim fuse = rewards nie sa claimowane (utrata wartosci). Lacznie 16 typow reward fuse'ow w kodzie
 
 ### RW-015: Vesting Balance Correctness
 - **Warunek**: balanceOf() w RewardsClaimManager odzwierciedla prawidlowo vested tokens

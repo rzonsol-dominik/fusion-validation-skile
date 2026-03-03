@@ -119,3 +119,33 @@ Weryfikacja bazowej konfiguracji PlasmaVault na produkcji.
 - **Warunek**: Callback handlery sa skonfigurowane dla wymaganych protokolow
 - **Jak sprawdzic**: Odczyt callback handler mappingu
 - **Oczekiwany wynik**: Prawidlowe handlery dla uzywanych protokolow
+
+### VC-025: Pre-Hooks Configuration
+- **Warunek**: Pre-hooks sa skonfigurowane zgodnie z zamierzeniem
+- **Jak sprawdzic**: Odczyt pre-hooks mappingu (selector → implementation)
+- **Oczekiwany wynik**: Odpowiednie pre-hooks dla wymaganych selektorow
+- **Uwagi**: Dostepne pre-hooks:
+  - **PauseFunctionPreHook** - emergency pause per-function (revertuje z `FunctionPaused`)
+  - **ExchangeRateValidatorPreHook** - walidacja driftu exchange rate z konfigurowalnym progiem
+  - **UpdateBalancesPreHook** - aktualizacja balansow przed operacja
+  - **UpdateBalancesIgnoreDustPreHook** - aktualizacja z tolerancja na dust
+  - **ValidateAllAssetsPricesPreHook** - walidacja cen assetow przez oracle
+  - **EIP7702DelegateValidationPreHook** - walidacja EIP-7702 delegate txs
+
+### VC-026: PlasmaVaultInitData Verification
+- **Warunek**: Parametry inicjalizacji vaulta sa poprawne
+- **Jak sprawdzic**: Sprawdz eventy z proxyInitialize() lub odczytaj zapisane wartosci:
+  - `assetName` / `assetSymbol` - nazwa i symbol share tokena
+  - `underlyingToken` - adres underlying ERC20
+  - `priceOracleMiddleware` - adres oracle
+  - `accessManager` - adres AccessManager
+  - `plasmaVaultBase` - adres PlasmaVaultBase extension
+  - `withdrawManager` - adres WithdrawManager (address(0) = disabled)
+  - `feeConfig` - konfiguracja performance i management fee
+- **Oczekiwany wynik**: Wszystkie parametry zgodne z zamierzeniem
+
+### VC-027: Exchange Rate Validator (jesli uzywany)
+- **Warunek**: ExchangeRateValidatorPreHook ma sensowny threshold
+- **Jak sprawdzic**: Odczyt substrates pre-hook dla ExchangeRateValidator
+- **Oczekiwany wynik**: Threshold zgodny z oczekiwana zmiennoscia vaulta (np. 1-5%)
+- **Uwagi**: Za ciasny threshold = blokuje normalne operacje; za luźny = brak ochrony

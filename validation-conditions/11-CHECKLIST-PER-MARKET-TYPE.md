@@ -174,8 +174,8 @@ Uzyj odpowiedniej checklisty gdy dodajesz nowy market.
 
 ### ERC20_VAULT_BALANCE (Balance Only):
 - [ ] **SP-01**: Erc20BalanceFuse przypisany jako balance fuse
-- [ ] **SP-02**: Market ID = specjalny (65535 lub dedykowany)
-- [ ] **SP-03**: Ten market ZAWSZE musi istniec w vaulcie
+- [ ] **SP-02**: Market ID = 7 (ERC20_VAULT_BALANCE z IporFusionMarkets.sol)
+- [ ] **SP-03**: Ten market ZAWSZE musi istniec w vaulcie - sledzi natywny balance underlying tokena
 
 ### ZERO_BALANCE_MARKET:
 - [ ] **SP-10**: ZeroBalanceFuse przypisany (jesli uzywany)

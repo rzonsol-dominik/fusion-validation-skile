@@ -61,6 +61,13 @@ Dla kazdej publicznej funkcji vaulta:
 AccessManager.isTargetClosed(vault) → false (jesli aktywny)
 ```
 
+### Krok 2.4: Redemption Delay
+```
+AccessManager.REDEMPTION_DELAY_IN_SECONDS() → uint256
+Sprawdz: > 0 i <= 604800 (7 dni max)
+Chroni przed sandwich attacks deposit-withdraw
+```
+
 ---
 
 ## FAZA 3: Konfiguracja Marketow (03-MARKET-CONFIGURATION.md)
@@ -196,9 +203,32 @@ rewardsManager.balanceOf() → current vested balance
 
 ---
 
-## FAZA 10: Smoke Test (opcjonalny)
+## FAZA 10: Pre-Hooks (01-VAULT-CORE.md VC-025/VC-027)
 
-### Krok 10.1: Test deposit
+### Krok 10.1: Pre-hooks configuration
+```
+Odczyt pre-hooks mappingu (selector → implementation):
+  - Sprawdz czy wymagane pre-hooks sa skonfigurowane
+  - PauseFunctionPreHook - emergency pause per-function
+  - ExchangeRateValidatorPreHook - walidacja driftu exchange rate
+  - UpdateBalancesPreHook / UpdateBalancesIgnoreDustPreHook
+  - ValidateAllAssetsPricesPreHook
+  - EIP7702DelegateValidationPreHook
+```
+
+### Krok 10.2: Exchange Rate Validator (jesli uzywany)
+```
+Odczyt substrates pre-hook dla ExchangeRateValidator:
+  - threshold zgodny z oczekiwana zmiennoscia (np. 1-5%)
+  - Za ciasny = blokuje normalne operacje
+  - Za luzny = brak ochrony
+```
+
+---
+
+## FAZA 11: Smoke Test (opcjonalny)
+
+### Krok 11.1: Test deposit
 ```
 1. Approve underlying token to vault
 2. vault.deposit(smallAmount, testAddress)
@@ -206,14 +236,14 @@ rewardsManager.balanceOf() → current vested balance
 4. vault.totalAssets() increased
 ```
 
-### Krok 10.2: Test withdraw
+### Krok 11.2: Test withdraw
 ```
 1. vault.withdraw(smallAmount, testAddress, testAddress)
 2. Sprawdz: underlying received
 3. vault.totalAssets() decreased
 ```
 
-### Krok 10.3: Test execute (wymaga ALPHA_ROLE)
+### Krok 11.3: Test execute (wymaga ALPHA_ROLE)
 ```
 1. Przygotuj FuseAction dla najprostszego marketu
 2. vault.execute([action])
@@ -260,10 +290,11 @@ Po zakonczeniu walidacji stworz raport:
 Mozliwe jest napisanie skryptu ktory automatycznie sprawdza wiekszosc warunkow:
 
 ### Wymagane RPC calls:
-- ~10 wywolan na faze 1-2
+- ~15 wywolan na faze 1-2 (wliczajac redemption delay)
 - ~5 * N wywolan na faze 3 (N = liczba marketow)
 - ~3 * M wywolan na faze 5 (M = liczba withdrawal fuses)
 - ~K wywolan na faze 7 (K = liczba unikalnych tokenow)
+- ~P wywolan na faze 10 (P = liczba pre-hooks)
 
 ### Narzedzia:
 - cast (foundry) do on-chain calls

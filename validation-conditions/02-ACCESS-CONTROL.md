@@ -148,6 +148,18 @@ Weryfikacja systemu rol, uprawnien i hierarchii w IporFusionAccessManager.
 | `updateWithdrawFee(...)` | WITHDRAW_MANAGER_WITHDRAW_FEE_ROLE (902) |
 | `updateRequestFee(...)` | WITHDRAW_MANAGER_REQUEST_FEE_ROLE (901) |
 
+#### Mappingi na PriceOracleMiddlewareManager (jesli wdrozony):
+
+| Funkcja | Oczekiwana rola |
+|---------|-----------------|
+| `setAssetsPriceSources(...)` | PRICE_ORACLE_MIDDLEWARE_MANAGER_ROLE (1200) |
+| `removeAssetsPriceSources(...)` | PRICE_ORACLE_MIDDLEWARE_MANAGER_ROLE (1200) |
+| `setPriceOracleMiddleware(...)` | ATOMIST_ROLE (100) |
+| `updatePriceValidation(...)` | ATOMIST_ROLE (100) |
+| `removePriceValidation(...)` | ATOMIST_ROLE (100) |
+| `validateAllAssetsPrices(...)` | TECH_PLASMA_VAULT_ROLE (3) |
+| `validateAssetsPrices(...)` | TECH_PLASMA_VAULT_ROLE (3) |
+
 #### Mappingi na RewardsClaimManager (jesli wdrozony):
 
 | Funkcja | Oczekiwana rola |

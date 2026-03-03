@@ -26,8 +26,19 @@ Weryfikacja interakcji miedzy marketami: dependency graph, market limits, cross-
 | MORPHO (z borrow) | ERC20_VAULT_BALANCE | Borrow dodaje tokeny do vaulta |
 | GEARBOX_FARM_DTOKEN_V3 | GEARBOX_POOL_V3 | Farm stakuje dTokeny z pool |
 | FLUID_INSTADAPP_STAKING | FLUID_INSTADAPP_POOL | Staking uzywa tokenow pool |
-| AERODROME gauge | AERODROME liquidity | Gauge stakuje LP tokeny |
+| AERODROME gauge (30) | AERODROME liquidity | Gauge stakuje LP tokeny |
+| AERODROME_SLIPSTREAM gauge (33) | AERODROME_SLIPSTREAM pool | Gauge stakuje CL pozycje |
+| VELODROME_SUPERCHAIN gauge (31) | VELODROME_SUPERCHAIN pool | Gauge stakuje LP tokeny |
+| VELODROME_SUPERCHAIN_SLIPSTREAM gauge (32) | VELODROME_SUPERCHAIN_SLIPSTREAM pool | Gauge stakuje CL pozycje |
+| BALANCER gauge (36) | BALANCER pool (36) | Gauge stakuje BPT tokeny (lp_token()) |
+| STAKE_DAO_V2 (34) | (price oracle dependency) | Nested ERC4626: reward vault → LP vault → underlying |
+| SILO_V2 (35) | (none - self-contained) | Wewnetrzna ksiegowosc przez SiloConfig |
+| NAPIER (46) | (brak balance fuse!) | Brak balance fuse w kodzie - wymaga custom tracking |
 | Dowolny swap market | ERC20_VAULT_BALANCE | Swap zmienia balance w vaulcie |
+
+> **UWAGA Slipstream**: Velodrome/Aerodrome Slipstream uzywaja FuseStorageLib do tracking NFT position IDs. Max 50 pozycji per substrate (ochrona przed DoS gas exhaustion).
+
+> **UWAGA Gauge fees**: Velodrome/Aerodrome POOL positions wliczaja trading fees. GAUGE positions NIE wliczaja fees (ida do veVELO/veAERO voters). Balance fuse uzywa index delta mechanism.
 
 ### MI-002: Dependency Graph Completeness
 - **Warunek**: WSZYSTKIE wymagane zaleznosci sa w grafie
