@@ -12,19 +12,19 @@ Weryfikacja systemu rol, uprawnien i hierarchii w IporFusionAccessManager.
 | 0 | ADMIN_ROLE | Najwyzszy admin - zarzadza wszystkimi rolami | - |
 | 1 | OWNER_ROLE | Zarzadza Guardian/Atomist/Owner | ADMIN |
 | 2 | GUARDIAN_ROLE | Emergency pause/cancel | OWNER |
-| 3 | TECH_PLASMA_VAULT_ROLE | Systemowa rola PlasmaVault | - |
-| 4 | IPOR_DAO_ROLE | Operacje DAO | - |
-| 5 | TECH_CONTEXT_MANAGER_ROLE | Dostep ContextManager | - |
-| 6 | TECH_WITHDRAW_MANAGER_ROLE | Dostep WithdrawManager | - |
-| 7 | TECH_VAULT_TRANSFER_SHARES_ROLE | Kontrola transferu shares | - |
+| 3 | TECH_PLASMA_VAULT_ROLE | Systemowa rola PlasmaVault | ADMIN |
+| 4 | IPOR_DAO_ROLE | Operacje DAO | self (4) |
+| 5 | TECH_CONTEXT_MANAGER_ROLE | Dostep ContextManager | self (5) |
+| 6 | TECH_WITHDRAW_MANAGER_ROLE | Dostep WithdrawManager | ADMIN |
+| 7 | TECH_VAULT_TRANSFER_SHARES_ROLE | Kontrola transferu shares | ADMIN |
 | 100 | ATOMIST_ROLE | Zarzadzanie vaultem | OWNER |
 | 200 | ALPHA_ROLE | Wykonywanie fuse actions | ATOMIST |
 | 300 | FUSE_MANAGER_ROLE | Dodawanie/usuwanie fuses | ATOMIST |
-| 301 | PRE_HOOKS_MANAGER_ROLE | Zarzadzanie pre-hooks | ATOMIST |
-| 400 | TECH_PERFORMANCE_FEE_MANAGER_ROLE | Performance fee | - |
-| 500 | TECH_MANAGEMENT_FEE_MANAGER_ROLE | Management fee | - |
+| 301 | PRE_HOOKS_MANAGER_ROLE | Zarzadzanie pre-hooks | OWNER |
+| 400 | TECH_PERFORMANCE_FEE_MANAGER_ROLE | Performance fee | self (400) |
+| 500 | TECH_MANAGEMENT_FEE_MANAGER_ROLE | Management fee | self (500) |
 | 600 | CLAIM_REWARDS_ROLE | Claimowanie nagrod | ATOMIST |
-| 601 | TECH_REWARDS_CLAIM_MANAGER_ROLE | System rewards | - |
+| 601 | TECH_REWARDS_CLAIM_MANAGER_ROLE | System rewards | ADMIN |
 | 700 | TRANSFER_REWARDS_ROLE | Transfer nagrod | ATOMIST |
 | 800 | WHITELIST_ROLE | Deposit/withdraw (prywatny vault) | ATOMIST |
 | 900 | CONFIG_INSTANT_WITHDRAWAL_FUSES_ROLE | Konfiguracja instant withdrawal | ATOMIST |
@@ -89,28 +89,76 @@ Weryfikacja systemu rol, uprawnien i hierarchii w IporFusionAccessManager.
 
 #### Wymagane mappingi funkcji:
 
-| Funkcja | Selektor | Oczekiwana rola |
-|---------|----------|-----------------|
-| `execute(FuseAction[])` | `0x...` | ALPHA_ROLE (200) |
-| `deposit(uint256,address)` | `0x6e553f65` | WHITELIST_ROLE (800) lub PUBLIC_ROLE |
-| `mint(uint256,address)` | `0x94bf804d` | WHITELIST_ROLE (800) lub PUBLIC_ROLE |
-| `withdraw(uint256,address,address)` | `0xb460af94` | PUBLIC_ROLE |
-| `redeem(uint256,address,address)` | `0xba087652` | PUBLIC_ROLE |
-| `addFuses(address[])` | `0x...` | FUSE_MANAGER_ROLE (300) |
-| `removeFuses(address[])` | `0x...` | FUSE_MANAGER_ROLE (300) |
-| `addBalanceFuse(uint256,address)` | `0x...` | FUSE_MANAGER_ROLE (300) |
-| `removeBalanceFuse(uint256,address)` | `0x...` | FUSE_MANAGER_ROLE (300) |
-| `grantMarketSubstrates(...)` | `0x...` | ATOMIST_ROLE (100) |
-| `setupMarketsLimits(...)` | `0x...` | ATOMIST_ROLE (100) |
-| `activateMarketsLimits()` | `0x...` | ATOMIST_ROLE (100) |
-| `deactivateMarketsLimits()` | `0x...` | ATOMIST_ROLE (100) |
-| `claimRewards(FuseAction[])` | `0x...` | CLAIM_REWARDS_ROLE (600) |
-| `updateMarketsBalances(uint256[])` | `0x...` | UPDATE_MARKETS_BALANCES_ROLE (1000) |
-| `configureInstantWithdrawalFuses(...)` | `0x...` | CONFIG_INSTANT_WITHDRAWAL_FUSES_ROLE (900) |
-| `configurePerformanceFee(...)` | `0x...` | TECH_PERFORMANCE_FEE_MANAGER_ROLE (400) |
-| `configureManagementFee(...)` | `0x...` | TECH_MANAGEMENT_FEE_MANAGER_ROLE (500) |
-| `transfer(address,uint256)` | `0xa9059cbb` | PUBLIC_ROLE lub restricted |
-| `transferFrom(...)` | `0x23b872dd` | PUBLIC_ROLE lub restricted |
+| Funkcja | Oczekiwana rola |
+|---------|-----------------|
+| `execute(FuseAction[])` | ALPHA_ROLE (200) |
+| `deposit(uint256,address)` | WHITELIST_ROLE (800) lub PUBLIC_ROLE (zalezy od isPublic) |
+| `mint(uint256,address)` | WHITELIST_ROLE (800) lub PUBLIC_ROLE (zalezy od isPublic) |
+| `depositWithPermit(...)` | WHITELIST_ROLE (800) lub PUBLIC_ROLE (zalezy od isPublic) |
+| `withdraw(uint256,address,address)` | PUBLIC_ROLE |
+| `redeem(uint256,address,address)` | PUBLIC_ROLE |
+| `redeemFromRequest(...)` | PUBLIC_ROLE |
+| `addFuses(address[])` | FUSE_MANAGER_ROLE (300) |
+| `removeFuses(address[])` | FUSE_MANAGER_ROLE (300) |
+| `addBalanceFuse(uint256,address)` | FUSE_MANAGER_ROLE (300) |
+| `removeBalanceFuse(uint256,address)` | FUSE_MANAGER_ROLE (300) |
+| `grantMarketSubstrates(...)` | FUSE_MANAGER_ROLE (300) |
+| `updateDependencyBalanceGraphs(...)` | FUSE_MANAGER_ROLE (300) |
+| `updateCallbackHandler(...)` | FUSE_MANAGER_ROLE (300) |
+| `setupMarketsLimits(...)` | ATOMIST_ROLE (100) |
+| `activateMarketsLimits()` | ATOMIST_ROLE (100) |
+| `deactivateMarketsLimits()` | ATOMIST_ROLE (100) |
+| `setPriceOracleMiddleware(...)` | ATOMIST_ROLE (100) |
+| `setTotalSupplyCap(...)` | ATOMIST_ROLE (100) |
+| `convertToPublicVault()` | ATOMIST_ROLE (100) |
+| `enableTransferShares()` | ATOMIST_ROLE (100) |
+| `setPreHookImplementations(...)` | PRE_HOOKS_MANAGER_ROLE (301) |
+| `claimRewards(FuseAction[])` | TECH_REWARDS_CLAIM_MANAGER_ROLE (601) |
+| `setRewardsClaimManagerAddress(...)` | TECH_REWARDS_CLAIM_MANAGER_ROLE (601) |
+| `updateMarketsBalances(uint256[])` | UPDATE_MARKETS_BALANCES_ROLE (1000) |
+| `configureInstantWithdrawalFuses(...)` | CONFIG_INSTANT_WITHDRAWAL_FUSES_ROLE (900) |
+| `configurePerformanceFee(...)` | TECH_PERFORMANCE_FEE_MANAGER_ROLE (400) |
+| `configureManagementFee(...)` | TECH_MANAGEMENT_FEE_MANAGER_ROLE (500) |
+| `transfer(address,uint256)` | TECH_VAULT_TRANSFER_SHARES_ROLE (7) (domyslnie) lub PUBLIC_ROLE (po enableTransferShares) |
+| `transferFrom(...)` | TECH_VAULT_TRANSFER_SHARES_ROLE (7) (domyslnie) lub PUBLIC_ROLE (po enableTransferShares) |
+| `transferRequestSharesFee(...)` | TECH_WITHDRAW_MANAGER_ROLE (6) |
+| `setMinimalExecutionDelaysForRoles(...)` | OWNER_ROLE (1) |
+
+#### Mappingi na AccessManager (nie vault):
+
+| Funkcja | Oczekiwana rola |
+|---------|-----------------|
+| `AccessManager.initialize(...)` | ADMIN_ROLE (0) |
+| `AccessManager.convertToPublicVault(address)` | TECH_PLASMA_VAULT_ROLE (3) |
+| `AccessManager.enableTransferShares(address)` | TECH_PLASMA_VAULT_ROLE (3) |
+| `AccessManager.setMinimalExecutionDelaysForRoles(...)` | TECH_PLASMA_VAULT_ROLE (3) |
+| `AccessManager.cancel(...)` | GUARDIAN_ROLE (2) |
+| `AccessManager.updateTargetClosed(...)` | GUARDIAN_ROLE (2) |
+| `AccessManager.canCallAndUpdate(...)` | TECH_PLASMA_VAULT_ROLE (3) |
+
+#### Mappingi na WithdrawManager (jesli wdrozony):
+
+| Funkcja | Oczekiwana rola |
+|---------|-----------------|
+| `releaseFunds(...)` | ALPHA_ROLE (200) |
+| `updateWithdrawWindow(...)` | ATOMIST_ROLE (100) |
+| `updatePlasmaVaultAddress(...)` | ATOMIST_ROLE (100) |
+| `canWithdrawFromRequest(...)` | TECH_PLASMA_VAULT_ROLE (3) |
+| `canWithdrawFromUnallocated(...)` | TECH_PLASMA_VAULT_ROLE (3) |
+| `updateWithdrawFee(...)` | WITHDRAW_MANAGER_WITHDRAW_FEE_ROLE (902) |
+| `updateRequestFee(...)` | WITHDRAW_MANAGER_REQUEST_FEE_ROLE (901) |
+
+#### Mappingi na RewardsClaimManager (jesli wdrozony):
+
+| Funkcja | Oczekiwana rola |
+|---------|-----------------|
+| `claimRewards(...)` | CLAIM_REWARDS_ROLE (600) |
+| `transfer(...)` | TRANSFER_REWARDS_ROLE (700) |
+| `updateBalance(...)` | UPDATE_REWARDS_BALANCE_ROLE (1100) |
+| `setupVestingTime(...)` | ATOMIST_ROLE (100) |
+| `addRewardFuses(...)` | FUSE_MANAGER_ROLE (300) |
+| `removeRewardFuses(...)` | FUSE_MANAGER_ROLE (300) |
+| `transferVestedTokensToVault(...)` | PUBLIC_ROLE |
 
 ---
 
@@ -120,13 +168,27 @@ Weryfikacja systemu rol, uprawnien i hierarchii w IporFusionAccessManager.
 - **Warunek**: Kazda rola ma poprawna admin role
 - **Jak sprawdzic**: Weryfikacja ustawien admin role dla kazdej roli
 - **Oczekiwany wynik**:
-  - OWNER_ROLE admin = ADMIN_ROLE
-  - GUARDIAN_ROLE admin = OWNER_ROLE
-  - ATOMIST_ROLE admin = OWNER_ROLE
-  - ALPHA_ROLE admin = ATOMIST_ROLE
-  - FUSE_MANAGER_ROLE admin = ATOMIST_ROLE
-  - itd.
-- **Uwagi**: Bledna hierarchia = eskalacja uprawnien
+  - OWNER_ROLE (1) admin = ADMIN_ROLE (0)
+  - GUARDIAN_ROLE (2) admin = OWNER_ROLE (1)
+  - PRE_HOOKS_MANAGER_ROLE (301) admin = OWNER_ROLE (1)
+  - ATOMIST_ROLE (100) admin = OWNER_ROLE (1)
+  - ALPHA_ROLE (200) admin = ATOMIST_ROLE (100)
+  - WHITELIST_ROLE (800) admin = ATOMIST_ROLE (100)
+  - CONFIG_INSTANT_WITHDRAWAL_FUSES_ROLE (900) admin = ATOMIST_ROLE (100)
+  - WITHDRAW_MANAGER_REQUEST_FEE_ROLE (901) admin = ATOMIST_ROLE (100)
+  - WITHDRAW_MANAGER_WITHDRAW_FEE_ROLE (902) admin = ATOMIST_ROLE (100)
+  - UPDATE_MARKETS_BALANCES_ROLE (1000) admin = ATOMIST_ROLE (100)
+  - UPDATE_REWARDS_BALANCE_ROLE (1100) admin = ATOMIST_ROLE (100)
+  - TRANSFER_REWARDS_ROLE (700) admin = ATOMIST_ROLE (100)
+  - CLAIM_REWARDS_ROLE (600) admin = ATOMIST_ROLE (100)
+  - FUSE_MANAGER_ROLE (300) admin = ATOMIST_ROLE (100)
+  - PRICE_ORACLE_MIDDLEWARE_MANAGER_ROLE (1200) admin = ATOMIST_ROLE (100)
+  - TECH_PERFORMANCE_FEE_MANAGER_ROLE (400) admin = self (400)
+  - TECH_MANAGEMENT_FEE_MANAGER_ROLE (500) admin = self (500)
+  - TECH_REWARDS_CLAIM_MANAGER_ROLE (601) admin = ADMIN_ROLE (0)
+  - IPOR_DAO_ROLE (4) admin = self (4)
+  - TECH_CONTEXT_MANAGER_ROLE (5) admin = self (5)
+- **Uwagi**: Bledna hierarchia = eskalacja uprawnien. Role TECH_* z self-admin sa niezmienne po inicjalizacji
 
 ### AC-011: Execution Delays
 - **Warunek**: Role z execution delay maja ustawione minimalne opoznienia

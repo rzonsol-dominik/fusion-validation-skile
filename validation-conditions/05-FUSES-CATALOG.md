@@ -30,8 +30,8 @@ Kompletny katalog fuse'ow z warunkami walidacji specyficznymi per protokol.
 | AaveV2BalanceFuse | Balance | - | aTokens - stable debt - variable debt |
 
 **Warunki per-vault z Aave V2:**
-- [ ] FV2-001: AAVE_POOL_V2 adres jest poprawny (immutable w fuse)
-- [ ] FV2-002: AAVE_POOL_DATA_PROVIDER adres poprawny
+- [ ] FV2-001: AAVE_V2_POOL_ADDRESSES_PROVIDER adres jest poprawny (immutable w fuse - pool i data provider pobierane dynamicznie)
+- [ ] FV2-002: Pool address z providera jest poprawny
 - [ ] FV2-003: Substrates zawieraja TYLKO tokeny obslugiwane przez Aave V2
 - [ ] FV2-004: Balance fuse prawidlowo odczytuje ceny z Aave oracle
 
@@ -44,13 +44,14 @@ Kompletny katalog fuse'ow z warunkami walidacji specyficznymi per protokol.
 | AaveV3BalanceFuse | Balance | - | aTokens - debts per substrate |
 
 **Warunki per-vault z Aave V3:**
-- [ ] FV3-001: AAVE_POOL adres poprawny dla danego chaina
-- [ ] FV3-002: AAVE_POOL_DATA_PROVIDER poprawny
-- [ ] FV3-003: AAVE_PRICE_ORACLE poprawny
+- [ ] FV3-001: AAVE_V3_POOL_ADDRESSES_PROVIDER adres poprawny dla danego chaina (immutable w fuse - pool, data provider i oracle sa pobierane dynamicznie z tego providera)
+- [ ] FV3-002: Pool address z providera jest poprawny (`provider.getPool()`)
+- [ ] FV3-003: Data provider i Price Oracle z providera sa poprawne
 - [ ] FV3-004: E-mode category ID jest poprawny (jesli uzywany, < 256)
 - [ ] FV3-005: Substrates to tokeny obslugiwane przez Aave V3 na tym chainie
 - [ ] FV3-006: Jesli borrow - vault ma odpowiedni collateral
 - [ ] FV3-007: Balance fuse uwzglednia zarowno supply jak i debt
+- [ ] FV3-008: Istnieje wariant AaveV3WithPriceOracleMiddlewareBalanceFuse - sprawdz ktory balance fuse jest uzyty
 
 ### Compound V3
 | Fuse | Typ | Substrates | Walidacja specyficzna |
@@ -197,6 +198,45 @@ Kompletny katalog fuse'ow z warunkami walidacji specyficznymi per protokol.
 - [ ] FTS-003: Target addresses sa poprawnymi DEX aggregatorami
 - [ ] FTS-004: Slippage limit jest sensowny (domyslnie 1% = 1e16 WAD)
 - [ ] FTS-005: Price oracle jest dostepny dla walidacji slippage USD
+
+### Odos Swapper
+**Warunki:**
+- [ ] FOS-001: OdosSwapperFuse zdeployowany z poprawnymi parametrami
+- [ ] FOS-002: Odos executor adres poprawny
+
+### Enso
+**Warunki:**
+- [ ] FEN-001: EnsoFuse z poprawnym executor adresem
+- [ ] FEN-002: EnsoExecutor adres poprawny
+
+---
+
+## DODATKOWE PROTOKOLY (discovered in codebase)
+
+Nastepujace protokoly maja fuse'y w kodzie ale nie byly w oryginalnym katalogu:
+
+| Protokol | Katalog fuse'ow | Market ID |
+|----------|----------------|-----------|
+| Aave V4 | `/aave_v4/` (4 fuses: Supply, Borrow, Balance, EMode) | 45 |
+| Aerodrome | `/aerodrome/` (Liquidity + Balance) | 30 |
+| Aerodrome Slipstream | `/aerodrome_slipstream/` | 33 |
+| Async Action | `/async_action/` (AsyncActionFuse, AsyncActionBalanceFuse) | 40 |
+| Compound V2 | `/compound_v2/` | - |
+| Ebisu | `/ebisu/` (5 fuses) | 39 |
+| Enso | `/enso/` (EnsoFuse, EnsoExecutor, variants) | 38 |
+| Harvest | `/harvest/` | 27 |
+| Liquity V2 | `/liquity/` (StabilityPool, Balance) | 29 |
+| Midas | `/midas/` (8 fuses) | 45 (duplikat!) |
+| Napier | `/napier/` (9 fuses: PT/YT swaps, deposits) | 46 |
+| Odos | `/odos/` (OdosSwapperFuse) | 42 |
+| Ramses V2 | `/ramses/` | 18 |
+| Silo V2 | `/silo_v2/` (6 fuses: borrow/collateral) | 35 |
+| Stake DAO V2 | `/stake_dao_v2/` | 34 |
+| TAC | `/tac/` (5 fuses: staking/delegation) | 28 |
+| Velodrome Superchain | `/velodrome_superchain/` | 31 |
+| Velodrome Superchain Slipstream | `/velodrome_superchain_slipstream/` | 32 |
+| Velora | `/velora/` | 43 |
+| Yield Basis | `/yield_basis/` (Supply, Balance) | 37 |
 
 ---
 

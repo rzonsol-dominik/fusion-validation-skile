@@ -16,15 +16,18 @@ Kazdy market musi miec: Market ID, Balance Fuse, Substrates, Fuses.
 | 4 | GEARBOX_FARM_DTOKEN_V3 | Gearbox V3 farming |
 | 5 | FLUID_INSTADAPP_POOL | Fluid pool |
 | 6 | FLUID_INSTADAPP_STAKING | Fluid staking |
+| 7 | ERC20_VAULT_BALANCE | Balance underlying w vaulcie |
 | 8 | UNISWAP_SWAP_V3_POSITIONS | Uniswap V3 positions |
 | 9 | UNISWAP_SWAP_V2 | Uniswap V2 swaps |
 | 10 | UNISWAP_SWAP_V3 | Uniswap V3 swaps |
 | 11 | EULER_V2 | Euler V2 |
+| 12 | UNIVERSAL_TOKEN_SWAPPER | Universal Token Swapper |
 | 13 | COMPOUND_V3_USDT | Compound V3 USDT |
 | 14 | MORPHO | Morpho Blue |
 | 15 | SPARK | Spark (Aave fork) |
 | 16 | CURVE_POOL | Curve pool |
 | 17 | CURVE_LP_GAUGE | Curve gauge |
+| 18 | RAMSES_V2_POSITIONS | Ramses V2 positions |
 | 19 | MORPHO_FLASH_LOAN | Morpho flash loan |
 | 20 | AAVE_V3_LIDO | Aave V3 Lido |
 | 21 | MOONWELL | Moonwell |
@@ -33,12 +36,32 @@ Kazdy market musi miec: Market ID, Balance Fuse, Substrates, Fuses.
 | 24 | FLUID_REWARDS | Fluid rewards |
 | 25 | CURVE_GAUGE_ERC4626 | Curve gauge (ERC4626) |
 | 26 | COMPOUND_V3_WETH | Compound V3 WETH |
+| 27 | HARVEST_HARD_WORK | Harvest yield farming |
+| 28 | TAC_STAKING | TAC staking |
+| 29 | LIQUITY_V2 | Liquity V2 |
+| 30 | AERODROME | Aerodrome |
+| 31 | VELODROME_SUPERCHAIN | Velodrome Superchain |
+| 32 | VELODROME_SUPERCHAIN_SLIPSTREAM | Velodrome Superchain Slipstream |
+| 33 | AREODROME_SLIPSTREAM | Aerodrome Slipstream |
+| 34 | STAKE_DAO_V2 | Stake DAO V2 |
+| 35 | SILO_V2 | Silo V2 |
+| 36 | BALANCER | Balancer V3 |
+| 37 | YIELD_BASIS_LT | Yield Basis LT |
+| 38 | ENSO | Enso |
+| 39 | EBISU | Ebisu |
+| 40 | ASYNC_ACTION | Async Action |
 | 41 | MORPHO_LIQUIDITY_IN_MARKETS | Morpho liquidity |
+| 42 | ODOS_SWAPPER | Odos Swapper |
+| 43 | VELORA_SWAPPER | Velora Swapper |
+| 45 | AAVE_V4 / MIDAS | Aave V4 / Midas (UWAGA: duplikat ID!) |
+| 46 | NAPIER | Napier |
 | 100_001 - 100_020 | ERC4626_0001 - ERC4626_0020 | Generic ERC4626 vaults |
 | 200_001 - 200_010 | META_MORPHO_0001-0010 | MetaMorpho vaults |
 | type(uint256).max | ZERO_BALANCE_MARKET | Zero balance (special) |
 | type(uint256).max - 1 | ASSETS_BALANCE_VALIDATION | Assets validation (special) |
 | type(uint256).max - 2 | EXCHANGE_RATE_VALIDATOR | Exchange rate (special) |
+
+> **UWAGA**: Market ID 45 jest przypisany zarówno do AAVE_V4 jak i MIDAS w IporFusionMarkets.sol - to potencjalny bug w kodzie źródłowym.
 
 ---
 

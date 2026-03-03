@@ -31,11 +31,11 @@ Weryfikacja bazowej konfiguracji PlasmaVault na produkcji.
 - **Oczekiwany wynik**: Prawidlowy adres kontraktu PlasmaVaultBase (nie address(0))
 - **Uwagi**: Uzywany do delegatecall dla ERC20 voting, permit, supply cap
 
-### VC-005: Proxy Implementation
-- **Warunek**: UUPS proxy wskazuje na poprawna implementacje
-- **Jak sprawdzic**: Odczyt implementation slot (`0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc`)
-- **Oczekiwany wynik**: Adres biezacej implementacji PlasmaVault
-- **Uwagi**: Weryfikacja integralnosci proxy
+### VC-005: Proxy Implementation (Minimal Proxy / Clones)
+- **Warunek**: Vault jest Minimal Proxy (OpenZeppelin Clones) wskazujacy na poprawna implementacje bazowa
+- **Jak sprawdzic**: Odczyt bytecodu proxy - powinien zawierac pattern EIP-1167 Minimal Proxy wskazujacy na base implementation. Alternatywnie: sprawdz PlasmaVaultFactory ktory deployowal vault via `Clones.clone(baseAddress)`
+- **Oczekiwany wynik**: Adres biezacej implementacji bazowej PlasmaVault
+- **Uwagi**: Vault NIE uzywa UUPS proxy. Uzywa Minimal Proxy (Clones) - kazdy vault to niezalezny klon bazowej implementacji tworzony przez PlasmaVaultFactory
 
 ### VC-006: Vault Initialization Status
 - **Warunek**: Vault jest w pelni zainicjalizowany
@@ -79,9 +79,11 @@ Weryfikacja bazowej konfiguracji PlasmaVault na produkcji.
 
 ### VC-015: Share Transfers Status
 - **Warunek**: Transfery sharesow sa wlaczone/wylaczone zgodnie z zamierzeniem
-- **Jak sprawdzic**: Sprawdz czy `transfer()` i `transferFrom()` maja PUBLIC_ROLE w AccessManager
-- **Oczekiwany wynik**: Zgodne z zamierzeniem
-- **Uwagi**: `enableTransferShares()` wlacza transfery
+- **Jak sprawdzic**: `AccessManager.getTargetFunctionRole(vault, transfer.selector)` - sprawdz przypisana role
+- **Oczekiwany wynik**:
+  - Domyslnie: TECH_VAULT_TRANSFER_SHARES_ROLE (7) - transfery zablokowane dla zwyklych userow
+  - Po `enableTransferShares()`: PUBLIC_ROLE - transfery wlaczone
+- **Uwagi**: `enableTransferShares()` zmienia role transfer/transferFrom na PUBLIC_ROLE. Wywolanie wymaga ATOMIST_ROLE
 
 ### VC-016: RewardsClaimManager Address
 - **Warunek**: Jesli vault uzywa rewards - RewardsClaimManager jest skonfigurowany
