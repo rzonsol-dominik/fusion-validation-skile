@@ -9,15 +9,17 @@ Weryfikacja bazowej konfiguracji PlasmaVault na produkcji.
 
 ### VC-001: Underlying Token
 - **Warunek**: Vault ma prawidlowy underlying token (ERC4626 asset)
-- **Jak sprawdzic**: `PlasmaVault.asset()`
-- **Oczekiwany wynik**: Adres oczekiwanego tokenu (np. USDC, DAI, WETH)
-- **Uwagi**: Nie mozna zmienic po deploymencie; musi zgadzac sie z zamierzonym tokenem vaulta
+- **Jak sprawdzic**:
+  1. `PlasmaVault.asset()` → adres tokena
+  2. `PriceOracleMiddleware.getAssetPrice(asset)` → cena musi istniec i byc > 0
+- **Oczekiwany wynik**: Adres oczekiwanego tokenu (np. USDC, DAI, WETH) ORAZ cena dostepna w oracle
+- **Uwagi**: Nie mozna zmienic po deploymencie; musi zgadzac sie z zamierzonym tokenem vaulta. Underlying token BEZ ceny w PriceOracleMiddleware = konwersja balance USD → amount jest niemozliwa (totalAssets bedzie bledny)
 
 ### VC-002: Access Manager Address
 - **Warunek**: Vault jest polaczony z poprawnym IporFusionAccessManager
 - **Jak sprawdzic**: `PlasmaVaultGovernance.getAccessManagerAddress()`
 - **Oczekiwany wynik**: Adres wdrazonego AccessManagera
-- **Uwagi**: AccessManager kontroluje CALY system uprawnien
+- **Uwagi**: AccessManager kontroluje CALY system uprawnien. Funkcja `getAccessManagerAddress()` istnieje w `PlasmaVaultGovernance.sol:454` (potwierdzone w kodzie)
 
 ### VC-003: Price Oracle Middleware
 - **Warunek**: Vault ma skonfigurowany price oracle
@@ -149,3 +151,16 @@ Weryfikacja bazowej konfiguracji PlasmaVault na produkcji.
 - **Jak sprawdzic**: Odczyt substrates pre-hook dla ExchangeRateValidator
 - **Oczekiwany wynik**: Threshold zgodny z oczekiwana zmiennoscia vaulta (np. 1-5%)
 - **Uwagi**: Za ciasny threshold = blokuje normalne operacje; za luźny = brak ochrony
+
+### VC-028: ERC721 Receiver Support
+- **Warunek**: Vault implementuje onERC721Received (jesli uzywa NFT pozycji - Uniswap V3, Ramses, Slipstream)
+- **Jak sprawdzic**: Vault odpowiada na `onERC721Received()` poprawnym selektorem
+- **Oczekiwany wynik**: Zwraca `IERC721Receiver.onERC721Received.selector`
+- **Uwagi**: Bez tego vault nie moze przyjmowac NFT pozycji z Uniswap V3 / Ramses / Aerodrome Slipstream
+
+### VC-029: WithdrawManager Initialization
+- **Warunek**: WithdrawManager jest zainicjalizowany (jesli uzywany)
+- **Jak sprawdzic**: WithdrawManager.getPlasmaVaultAddress() zwraca adres vaulta
+- **Oczekiwany wynik**: Poprawny adres vaulta (nie address(0))
+- **Uwagi**: WithdrawManager musi wskazywac na wlasciwy vault. Zmiana mozliwa przez updatePlasmaVaultAddress() (ATOMIST_ROLE)
+ś

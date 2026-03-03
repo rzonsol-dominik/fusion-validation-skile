@@ -140,6 +140,7 @@ Weryfikacja systemu rol, uprawnien i hierarchii w IporFusionAccessManager.
 
 | Funkcja | Oczekiwana rola |
 |---------|-----------------|
+| `requestShares(...)` | PUBLIC_ROLE (publiczny dostep do requestow) |
 | `releaseFunds(...)` | ALPHA_ROLE (200) |
 | `updateWithdrawWindow(...)` | ATOMIST_ROLE (100) |
 | `updatePlasmaVaultAddress(...)` | ATOMIST_ROLE (100) |
@@ -180,7 +181,7 @@ Weryfikacja systemu rol, uprawnien i hierarchii w IporFusionAccessManager.
 - **Warunek**: Kazda rola ma poprawna admin role
 - **Jak sprawdzic**: Weryfikacja ustawien admin role dla kazdej roli
 - **Oczekiwany wynik**:
-  - OWNER_ROLE (1) admin = ADMIN_ROLE (0)
+  - OWNER_ROLE (1) admin = OWNER_ROLE (1) (self-administering)
   - GUARDIAN_ROLE (2) admin = OWNER_ROLE (1)
   - PRE_HOOKS_MANAGER_ROLE (301) admin = OWNER_ROLE (1)
   - ATOMIST_ROLE (100) admin = OWNER_ROLE (1)

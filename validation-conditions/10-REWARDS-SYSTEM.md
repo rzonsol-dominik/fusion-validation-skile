@@ -66,8 +66,8 @@ PlasmaVault (underlying token balance)
 ### RW-010: Vesting Time Configuration
 - **Warunek**: Vesting time jest skonfigurowany sensownie
 - **Jak sprawdzic**: `rewardsClaimManager.getVestingData()`
-- **Oczekiwany wynik**: vestingTime > 0 i rozsadny (np. 7 dni, 30 dni)
-- **Uwagi**: 0 = natychmiastowy vesting; zbyt dlugi = rewards sa zamrozone
+- **Oczekiwany wynik**: vestingTime > 1 i rozsadny (np. 7 dni = 604800s, 30 dni = 2592000s)
+- **Uwagi**: Default po deploymencie = 1 sekunda! Musi byc zmieniony przez `setupVestingTime()`. 0 = natychmiastowy vesting; zbyt dlugi = rewards sa zamrozone
 
 ### RW-011: CLAIM_REWARDS_ROLE Assignment
 - **Warunek**: CLAIM_REWARDS_ROLE jest przypisana do oczekiwanego konta (bot/keeper)

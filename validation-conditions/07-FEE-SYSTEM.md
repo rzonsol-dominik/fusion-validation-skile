@@ -136,3 +136,9 @@ Weryfikacja konfiguracji oplat: performance fee, management fee, deposit fee.
 - **Jak sprawdzic**: `FeeManager.setDepositFee()` wymaga odpowiedniej roli
 - **Oczekiwany wynik**: Tylko ATOMIST moze zmieniac deposit fee
 - **Uwagi**: W przeciwienstwie do DAO fees (immutable), deposit fee jest mutable
+
+### FE-033: Deposit Fee Max Guard
+- **Warunek**: Deposit fee nie przekracza rozsadnej wartosci
+- **Jak sprawdzic**: `FeeManager.getDepositFee()` < 1e18
+- **Oczekiwany wynik**: Wartosc znacznie ponizej 1e18 (100%). Kod pozwala na max 1e18 bez ograniczenia gornego!
+- **Uwagi**: Brak hardcoded max w kontrakcie - ATOMIST moze ustawic dowolna wartosc do 1e18. Walidacja manualna wymagana

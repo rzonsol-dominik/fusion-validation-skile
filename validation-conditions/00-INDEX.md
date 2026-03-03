@@ -27,3 +27,24 @@
    - **Jak sprawdzic**: Wywolanie on-chain lub metoda weryfikacji
    - **Oczekiwany wynik**: Jaki powinien byc rezultat
    - **Priorytet**: CRITICAL / HIGH / MEDIUM
+
+## Komentarze inline
+
+Mozesz dodawac komentarze bezposrednio przy warunkach uzywajac HTML comments:
+
+```markdown
+### VC-001: Underlying Token
+- **Warunek**: Vault ma prawidlowy underlying token
+- **Jak sprawdzic**: `PlasmaVault.asset()`
+<!-- KOMENTARZ: Sprawdzone na mainnet 2026-03-03, OK -->
+<!-- TODO: Dodac sprawdzenie decimals tokena -->
+<!-- PYTANIE: Czy to dotyczy tez wrapped tokenow? -->
+```
+
+Dostepne tagi:
+- `<!-- KOMENTARZ: ... -->` - ogolna uwaga
+- `<!-- TODO: ... -->` - rzecz do zrobienia / poprawienia
+- `<!-- PYTANIE: ... -->` - pytanie do wyjasnienia w nastepnej iteracji
+- `<!-- BLAD: ... -->` - znaleziony blad w warunku
+
+W nastepnej iteracji Claude przeczyta te komentarze i uwzgledni je w analizie.

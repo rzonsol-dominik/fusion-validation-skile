@@ -71,8 +71,10 @@ Kompletny katalog fuse'ow z warunkami walidacji specyficznymi per protokol.
 | MorphoSupplyFuse | Supply/Withdraw | Morpho Market IDs (bytes32) | Market params resolution |
 | MorphoBorrowFuse | Borrow/Repay | Morpho Market IDs | Shares vs amount conversion |
 | MorphoCollateralFuse | Collateral | Morpho Market IDs | Collateral deposit |
+| MorphoSupplyWithCallBackDataFuse | Supply z callback | Morpho Market IDs | Supply z callback data |
 | MorphoFlashLoanFuse | Flash loan | - | Flash loan execution |
 | MorphoBalanceFuse | Balance | - | Supply + collateral - borrow |
+| MorphoOnlyLiquidityBalanceFuse | Balance (liquidity) | - | Tylko supply liquidity (bez collateral) |
 
 **Warunki:**
 - [ ] FM-001: MORPHO adres poprawny
@@ -87,6 +89,7 @@ Kompletny katalog fuse'ow z warunkami walidacji specyficznymi per protokol.
 | EulerV2SupplyFuse | Supply/Withdraw | Euler vault addresses | EVC integration |
 | EulerV2BorrowFuse | Borrow/Repay | Euler vault addresses | SubAccount mgmt |
 | EulerV2CollateralFuse | Collateral | Euler vault addresses | Controller logic |
+| EulerV2ControllerFuse | Controller | Euler vault addresses | Controller enable/disable |
 | EulerV2BatchFuse | Batch ops | - | Multi-call execution |
 | EulerV2BalanceFuse | Balance | - | Per-vault balance tracking |
 
@@ -97,15 +100,32 @@ Kompletny katalog fuse'ow z warunkami walidacji specyficznymi per protokol.
 - [ ] FE-004: Euler vaults sa aktywne i nie spauzowane
 
 ### Moonwell
+| Fuse | Typ | Substrates | Walidacja specyficzna |
+|------|-----|------------|----------------------|
+| MoonwellSupplyFuse | Supply/Withdraw | Asset addresses | mToken balance check |
+| MoonwellBorrowFuse | Borrow/Repay | Asset addresses | Borrow limit check |
+| MoonwellEnableMarketFuse | Market enable | Asset addresses | Comptroller enterMarkets |
+| MoonwellBalanceFuse | Balance | - | Supply - borrow tracking |
+
 **Warunki:**
 - [ ] FMW-001: mToken adresy poprawne
 - [ ] FMW-002: Comptroller adres poprawny
 - [ ] FMW-003: Market jest wlaczony na Moonwell
+- [ ] FMW-004: Jesli borrow - vault ma odpowiedni collateral (enterMarkets wywolane)
+- [ ] FMW-005: Balance fuse uwzglednia zarowno supply jak i borrow (net position)
 
 ### Silo V2
+| Fuse | Typ | Substrates | Walidacja specyficzna |
+|------|-----|------------|----------------------|
+| SiloV2SupplyBorrowableCollateralFuse | Supply (borrowable) | Silo addresses | Borrowable collateral deposit |
+| SiloV2SupplyNonBorrowableCollateralFuse | Supply (protected) | Silo addresses | Non-borrowable collateral deposit |
+| SiloV2BorrowFuse | Borrow/Repay | Silo addresses | Borrow from silo |
+| SiloV2BalanceFuse | Balance | - | Net position tracking |
+
 **Warunki:**
 - [ ] FS-001: Silo config adresy poprawne
 - [ ] FS-002: Silo index poprawny (borrowable vs non-borrowable)
+- [ ] FS-003: Rozroznienie miedzy borrowable i non-borrowable collateral fuse
 
 ---
 
@@ -144,12 +164,46 @@ Kompletny katalog fuse'ow z warunkami walidacji specyficznymi per protokol.
 - [ ] FB-004: Substrates zawieraja adres pool + WSZYSTKIE tokeny w pool
 - [ ] FB-005: Token ordering w substrates zgadza sie z pool token ordering
 
-### Aerodrome / Velodrome
-**Warunki:**
+### Aerodrome
+| Fuse | Typ | Substrates | Walidacja specyficzna |
+|------|-----|------------|----------------------|
+| AerodromeLiquidityFuse | Add/Remove LP | Pool addresses | Liquidity provision |
+| AerodromeGaugeFuse | Gauge stake/unstake | Gauge addresses | LP staking |
+| AerodromeClaimFeesFuse | Collect fees | Pool addresses | Trading fees collection |
+| AerodromeBalanceFuse | Balance | - | LP + gauge tracking |
+
+### Aerodrome Slipstream
+| Fuse | Typ | Substrates | Walidacja specyficzna |
+|------|-----|------------|----------------------|
+| AreodromeSlipstreamNewPositionFuse | Create position | Token pairs | CL NFT position mgmt |
+| AreodromeSlipstreamModifyPositionFuse | Modify position | Token pairs | Liquidity adjustment |
+| AreodromeSlipstreamCollectFuse | Collect fees | - | Fee collection |
+| AreodromeSlipstreamCLGaugeFuse | Gauge stake | Gauge addresses | CL gauge staking |
+| AreodromeSlipstreamBalanceFuse | Balance | - | Position value tracking |
+
+### Velodrome Superchain
+| Fuse | Typ | Substrates | Walidacja specyficzna |
+|------|-----|------------|----------------------|
+| VelodromeSuperchainLiquidityFuse | Add/Remove LP | Pool addresses | Liquidity provision |
+| VelodromeSuperchainGaugeFuse | Gauge stake/unstake | Gauge addresses | LP staking |
+| VelodromeSuperchainBalanceFuse | Balance | - | LP + gauge tracking |
+
+### Velodrome Superchain Slipstream
+| Fuse | Typ | Substrates | Walidacja specyficzna |
+|------|-----|------------|----------------------|
+| VelodromeSuperchainSlipstreamNewPositionFuse | Create position | Token pairs | CL NFT position mgmt |
+| VelodromeSuperchainSlipstreamModifyPositionFuse | Modify position | Token pairs | Liquidity adjustment |
+| VelodromeSuperchainSlipstreamCollectFuse | Collect fees | - | Fee collection |
+| VelodromeSuperchainSlipstreamLeafCLGaugeFuse | Gauge stake | Gauge addresses | CL gauge staking |
+| VelodromeSuperchainSlipstreamBalanceFuse | Balance | - | Position value tracking |
+
+**Warunki (Aerodrome / Velodrome wspolne):**
 - [ ] FA-001: Gauge adresy poprawne i aktywne
 - [ ] FA-002: Router adres poprawny
 - [ ] FA-003: Pool adresy poprawne
 - [ ] FA-004: Substrates rozrozniaja gauge vs pool substrates
+- [ ] FA-005: Slipstream - max 50 pozycji per substrate (ochrona DoS gas exhaustion)
+- [ ] FA-006: Gauge positions NIE wliczaja trading fees (ida do veVELO/veAERO voters)
 
 ### Curve Stableswap NG
 **Warunki:**
@@ -187,6 +241,8 @@ Kompletny katalog fuse'ow z warunkami walidacji specyficznymi per protokol.
 | Fuse | Typ | Substrates | Walidacja specyficzna |
 |------|-----|------------|----------------------|
 | UniversalTokenSwapperFuse | Multi-DEX swap | Tokens + Targets + Slippage | USD slippage validation |
+| UniversalTokenSwapperEthFuse | Swap z ETH wrapping | Tokens + Targets + Slippage | Jak UTS + WETH wrap/unwrap |
+| UniversalTokenSwapperWithVerificationFuse | Swap z weryfikacja | Tokens + Targets + Slippage | Dodatkowa weryfikacja po swapie |
 | SwapExecutor | Execution | - | Delegated swap execution |
 
 **Warunki:**
@@ -205,38 +261,146 @@ Kompletny katalog fuse'ow z warunkami walidacji specyficznymi per protokol.
 - [ ] FOS-002: Odos executor adres poprawny
 
 ### Enso
+| Fuse | Typ | Substrates | Walidacja specyficzna |
+|------|-----|------------|----------------------|
+| EnsoFuse | Multi-protocol execution | Targets + tokens | Delegated execution via Enso |
+| EnsoInitExecutorFuse | Init executor | - | Inicjalizacja Enso executora |
+| EnsoBalanceFuse | Balance | - | Tracking pozycji Enso |
+
 **Warunki:**
 - [ ] FEN-001: EnsoFuse z poprawnym executor adresem
 - [ ] FEN-002: EnsoExecutor adres poprawny
+- [ ] FEN-003: EnsoInitExecutorFuse wywolany przed uzyciem EnsoFuse
 
 ---
 
-## DODATKOWE PROTOKOLY (discovered in codebase)
+## DODATKOWE PROTOKOLY (szczegoly fuse'ow)
 
-Nastepujace protokoly maja fuse'y w kodzie ale nie byly w oryginalnym katalogu:
+### Aave V4
+| Fuse | Typ | Substrates | Walidacja specyficzna |
+|------|-----|------------|----------------------|
+| AaveV4SupplyFuse | Supply/Withdraw | Asset addresses | Aave V4 pool |
+| AaveV4BorrowFuse | Borrow/Repay | Asset addresses | Variable rate borrow |
+| AaveV4EModeFuse | E-Mode | - | E-mode category switch |
+| AaveV4BalanceFuse | Balance | - | Supply - debt tracking |
 
-| Protokol | Katalog fuse'ow | Market ID |
-|----------|----------------|-----------|
-| Aave V4 | `/aave_v4/` (4 fuses: Supply, Borrow, Balance, EMode) | 45 |
-| Aerodrome | `/aerodrome/` (Liquidity + Balance) | 30 |
-| Aerodrome Slipstream | `/aerodrome_slipstream/` | 33 |
-| Async Action | `/async_action/` (AsyncActionFuse, AsyncActionBalanceFuse) | 40 |
-| Compound V2 | `/compound_v2/` | - |
-| Ebisu | `/ebisu/` (5 fuses) | 39 |
-| Enso | `/enso/` (EnsoFuse, EnsoExecutor, variants) | 38 |
-| Harvest | `/harvest/` | 27 |
-| Liquity V2 | `/liquity/` (StabilityPool, Balance) | 29 |
-| Midas | `/midas/` (8 fuses) | 45 (duplikat!) |
-| Napier | `/napier/` (9 fuses: PT/YT swaps, deposits) | 46 |
-| Odos | `/odos/` (OdosSwapperFuse) | 42 |
-| Ramses V2 | `/ramses/` | 18 |
-| Silo V2 | `/silo_v2/` (6 fuses: borrow/collateral) | 35 |
-| Stake DAO V2 | `/stake_dao_v2/` | 34 |
-| TAC | `/tac/` (5 fuses: staking/delegation) | 28 |
-| Velodrome Superchain | `/velodrome_superchain/` | 31 |
-| Velodrome Superchain Slipstream | `/velodrome_superchain_slipstream/` | 32 |
-| Velora | `/velora/` | 43 |
-| Yield Basis | `/yield_basis/` (Supply, Balance) | 37 |
+**Warunki:**
+- [ ] FV4-001: Pool adres poprawny dla Aave V4
+- [ ] FV4-002: E-mode category ID poprawny (jesli uzywany)
+- [ ] FV4-003: Market ID 45 - UWAGA: duplikat z MIDAS!
+
+### Midas
+| Fuse | Typ | Substrates | Walidacja specyficzna |
+|------|-----|------------|----------------------|
+| MidasSupplyFuse | Supply/Withdraw | Asset addresses | Midas vault deposit |
+| MidasRequestSupplyFuse | Request-based supply | Asset addresses | Async request-based |
+| MidasBalanceFuse | Balance | - | Position tracking |
+
+**Warunki:**
+- [ ] FMI-001: Midas vault adresy poprawne
+- [ ] FMI-002: Market ID 45 - UWAGA: duplikat z AAVE_V4!
+
+### Napier
+| Fuse | Typ | Substrates | Walidacja specyficzna |
+|------|-----|------------|----------------------|
+| NapierDepositFuse | Deposit | Napier pool addresses | Deposit do pool |
+| NapierSupplyFuse | Supply | Napier pool addresses | Supply liquidity |
+| NapierRedeemFuse | Redeem | Napier pool addresses | Redeem z pool |
+| NapierSwapPtFuse | Swap PT | Napier market addresses | PT swap |
+| NapierSwapYtFuse | Swap YT | Napier market addresses | YT swap |
+| NapierCombineFuse | Combine PT+YT | Napier market addresses | Combine to underlying |
+| NapierCollectFuse | Collect fees | - | Fee collection |
+| NapierZapDepositFuse | Zap deposit | - | Single-tx deposit |
+| NapierUniversalRouterFuse | Router | - | Multi-path routing |
+
+**Warunki:**
+- [ ] FN-001: Napier router adres poprawny
+- [ ] FN-002: Pool/market adresy poprawne i aktywne
+- [ ] FN-003: UWAGA: Brak balance fuse dla Napier w kodzie! Wymaga custom tracking
+
+### Ebisu
+| Fuse | Typ | Substrates | Walidacja specyficzna |
+|------|-----|------------|----------------------|
+| EbisuZapperCreateFuse | Create trove | Asset addresses | Liquity-style trove creation |
+| EbisuAdjustTroveFuse | Adjust trove | - | Modify collateral/debt |
+| EbisuAdjustInterestRateFuse | Interest rate | - | Rate adjustment |
+| EbisuZapperLeverModifyFuse | Leveraged modify | - | Leverage operations |
+| EbisuZapperBalanceFuse | Balance | - | Trove value tracking |
+
+**Warunki:**
+- [ ] FEB-001: Zapper adres poprawny
+- [ ] FEB-002: BoldToken i WETH adresy poprawne
+- [ ] FEB-003: Trove manager adres poprawny
+
+### Liquity V2
+| Fuse | Typ | Substrates | Walidacja specyficzna |
+|------|-----|------------|----------------------|
+| LiquityStabilityPoolFuse | Stability Pool | Pool addresses | Deposit/withdraw z SP |
+| LiquityBalanceFuse | Balance | - | SP position tracking |
+
+**Warunki:**
+- [ ] FL2-001: Stability Pool adres poprawny
+- [ ] FL2-002: BOLD token adres poprawny
+
+### TAC Staking
+| Fuse | Typ | Substrates | Walidacja specyficzna |
+|------|-----|------------|----------------------|
+| TacStakingBalanceFuse | Balance | - | Staked position tracking |
+| TacStakingDelegateFuse | Delegate | Validator addresses | Delegate stake |
+| TacStakingRedelegateFuse | Redelegate | Validator addresses | Move stake |
+| TacStakingEmergencyFuse | Emergency | - | Emergency unstake |
+
+**Warunki:**
+- [ ] FTC-001: TAC staking contract adres poprawny
+- [ ] FTC-002: Validator adresy sa poprawne i aktywne
+
+### Stake DAO V2
+| Fuse | Typ | Substrates | Walidacja specyficzna |
+|------|-----|------------|----------------------|
+| StakeDaoV2SupplyFuse | Supply/Withdraw | Vault addresses | Stake DAO vault deposit |
+| StakeDaoV2BalanceFuse | Balance | - | Nested ERC4626 tracking |
+
+**Warunki:**
+- [ ] FSD-001: Stake DAO vault adresy poprawne
+- [ ] FSD-002: Nested vault chain: reward vault → LP vault → underlying
+
+### Yield Basis
+| Fuse | Typ | Substrates | Walidacja specyficzna |
+|------|-----|------------|----------------------|
+| YieldBasisLtSupplyFuse | Supply/Withdraw | YB pool addresses | YB LT deposit |
+| YieldBasisLtBalanceFuse | Balance | - | Position tracking |
+
+**Warunki:**
+- [ ] FYB-001: Yield Basis pool adres poprawny
+
+### Async Action
+| Fuse | Typ | Substrates | Walidacja specyficzna |
+|------|-----|------------|----------------------|
+| AsyncActionFuse | Async execution | Target addresses | Asynchroniczne operacje |
+| AsyncActionBalanceFuse | Balance | - | Async result tracking |
+
+**Warunki:**
+- [ ] FAA-001: Target adresy poprawne i zaufane
+- [ ] FAA-002: Callback handlers skonfigurowane dla async callbacks
+
+### Compound V2
+| Fuse | Typ | Substrates | Walidacja specyficzna |
+|------|-----|------------|----------------------|
+| CompoundV2SupplyFuse | Supply/Withdraw | Asset addresses | cToken interaction |
+| CompoundV2BalanceFuse | Balance | - | cToken balance tracking |
+
+**Warunki:**
+- [ ] FC2-001: cToken adresy poprawne
+- [ ] FC2-002: Comptroller adres poprawny
+
+### Lido (chain-specific: Ethereum)
+| Fuse | Typ | Substrates | Walidacja specyficzna |
+|------|-----|------------|----------------------|
+| StEthWrapperFuse | Wrap/Unwrap | - | stETH <-> wstETH conversion |
+
+**Warunki:**
+- [ ] FLI-001: stETH i wstETH adresy poprawne
+- [ ] FLI-002: Tylko na Ethereum mainnet
 
 ---
 
@@ -251,7 +415,16 @@ Nastepujace protokoly maja fuse'y w kodzie ale nie byly w oryginalnym katalogu:
 ### Maintenance Fuses
 - **UpdateMarketsBalancesFuse**: Batch update balansow
 - **ConfigureInstantWithdrawalFuse**: Konfiguracja wyplat
-- **TransientStorage*Fuse**: Transient storage operations
+- **UpdateWithdrawManagerMaintenanceFuse**: Aktualizacja adresu WithdrawManager
+- **BurnRequestFeeFuse**: Spalanie request fee shares
+- **TransientStorageSetInputsFuse**: Ustawienie danych w transient storage
+- **TransientStorageMapperFuse**: Mapowanie danych w transient storage
+- **TransientStorageChainReaderFuse**: Odczyt danych z transient storage
+
+### PlasmaVault-specific Fuses
+- **PlasmaVaultRequestSharesFuse**: Request shares do scheduled withdrawal
+- **PlasmaVaultRedeemFromRequestFuse**: Redeem z requestu
+- **PlasmaVaultBalanceAssetsValidationFuse**: Walidacja integralnosci assetow
 
 ---
 

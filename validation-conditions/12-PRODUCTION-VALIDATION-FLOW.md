@@ -226,6 +226,22 @@ Odczyt substrates pre-hook dla ExchangeRateValidator:
 
 ---
 
+## FAZA 10b: Dodatkowe warunki Vault Core (01-VAULT-CORE.md VC-028/VC-029)
+
+### Krok 10b.1: ERC721 Receiver (jesli vault uzywa NFT pozycji)
+```
+Jesli vault uzywa Uniswap V3, Ramses V2 lub Slipstream:
+  vault.onERC721Received(address,address,uint256,bytes) → powinno zwrocic selektor
+```
+
+### Krok 10b.2: WithdrawManager initialization
+```
+WithdrawManager.getPlasmaVaultAddress() → adres vaulta
+Sprawdz ze jest poprawny
+```
+
+---
+
 ## FAZA 11: Smoke Test (opcjonalny)
 
 ### Krok 11.1: Test deposit
