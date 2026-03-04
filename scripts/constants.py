@@ -165,6 +165,12 @@ CHAINS = {
         "etherscan_url": "https://api-optimistic.etherscan.io/api",
         "explorer_url": "https://optimistic.etherscan.io",
     },
+    "plasma-mainnet": {
+        "chain_id": 9745,
+        "alchemy_network": "plasma-mainnet",
+        "etherscan_url": "https://plasmascan.to/api",
+        "explorer_url": "https://plasmascan.to",
+    },
 }
 
 # ---------------------------------------------------------------------------
