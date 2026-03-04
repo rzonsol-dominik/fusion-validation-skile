@@ -1,0 +1,159 @@
+{
+  "creation_block": 23396142,
+  "last_scanned_block": 24583817,
+  "events": [
+    {
+      "event": "RoleGranted",
+      "blockNumber": 23396142,
+      "transactionIndex": 158,
+      "logIndex": 381,
+      "args": {
+        "roleId": 0,
+        "account": "0xcd05909C4A1F8E501e4ED554cEF4Ed5E48D9b852",
+        "delay": 0,
+        "since": 1758273035,
+        "newMember": true
+      }
+    },
+    {
+      "event": "RoleRevoked",
+      "blockNumber": 23396142,
+      "transactionIndex": 158,
+      "logIndex": 423,
+      "args": {
+        "roleId": 0,
+        "account": "0xcd05909C4A1F8E501e4ED554cEF4Ed5E48D9b852"
+      }
+    },
+    {
+      "event": "RoleGranted",
+      "blockNumber": 23396142,
+      "transactionIndex": 158,
+      "logIndex": 649,
+      "args": {
+        "roleId": 601,
+        "account": "0xAf2f131E6e09962584D106e6896cFa6DA8771281",
+        "delay": 0,
+        "since": 1758273035,
+        "newMember": true
+      }
+    },
+    {
+      "event": "RoleGranted",
+      "blockNumber": 23396142,
+      "transactionIndex": 158,
+      "logIndex": 650,
+      "args": {
+        "roleId": 4,
+        "account": "0xF6a9bd8F6DC537675D499Ac1CA14f2c55d8b5569",
+        "delay": 0,
+        "since": 1758273035,
+        "newMember": true
+      }
+    },
+    {
+      "event": "RoleGranted",
+      "blockNumber": 23396142,
+      "transactionIndex": 158,
+      "logIndex": 651,
+      "args": {
+        "roleId": 1,
+        "account": "0xC82c898493FF0AaFD5fe1F1994b620F077dFcB2d",
+        "delay": 0,
+        "since": 1758273035,
+        "newMember": true
+      }
+    },
+    {
+      "event": "RoleGranted",
+      "blockNumber": 23396142,
+      "transactionIndex": 158,
+      "logIndex": 652,
+      "args": {
+        "roleId": 1000,
+        "account": "0x6f274F5098ad4CeBF3B68c81f260dE8eC66737c8",
+        "delay": 0,
+        "since": 1758273035,
+        "newMember": true
+      }
+    },
+    {
+      "event": "RoleGranted",
+      "blockNumber": 23396142,
+      "transactionIndex": 158,
+      "logIndex": 653,
+      "args": {
+        "roleId": 3,
+        "account": "0x6f274F5098ad4CeBF3B68c81f260dE8eC66737c8",
+        "delay": 0,
+        "since": 1758273035,
+        "newMember": true
+      }
+    },
+    {
+      "event": "RoleGranted",
+      "blockNumber": 23396142,
+      "transactionIndex": 158,
+      "logIndex": 654,
+      "args": {
+        "roleId": 500,
+        "account": "0x1872A6Bcd6CC819d8f75FBAe52E24d35fC4ed6b4",
+        "delay": 0,
+        "since": 1758273035,
+        "newMember": true
+      }
+    },
+    {
+      "event": "RoleGranted",
+      "blockNumber": 23396142,
+      "transactionIndex": 158,
+      "logIndex": 655,
+      "args": {
+        "roleId": 400,
+        "account": "0x1872A6Bcd6CC819d8f75FBAe52E24d35fC4ed6b4",
+        "delay": 0,
+        "since": 1758273035,
+        "newMember": true
+      }
+    },
+    {
+      "event": "RoleGranted",
+      "blockNumber": 23396142,
+      "transactionIndex": 158,
+      "logIndex": 656,
+      "args": {
+        "roleId": 7,
+        "account": "0x1872A6Bcd6CC819d8f75FBAe52E24d35fC4ed6b4",
+        "delay": 0,
+        "since": 1758273035,
+        "newMember": true
+      }
+    },
+    {
+      "event": "RoleGranted",
+      "blockNumber": 23396142,
+      "transactionIndex": 158,
+      "logIndex": 657,
+      "args": {
+        "roleId": 5,
+        "account": "0x59b688950E0f04Dbc1DA14119824fd159870C6B7",
+        "delay": 0,
+        "since": 1758273035,
+        "newMember": true
+      }
+    },
+    {
+      "event": "RoleGranted",
+      "blockNumber": 23396142,
+      "transactionIndex": 158,
+      "logIndex": 658,
+      "args": {
+        "roleId": 6,
+        "account": "0xBb6b656BE08B2ef275AA8009fF7d7f73615EF1bD",
+        "delay": 0,
+        "since": 1758273035,
+        "newMember": true
+      }
+    }
+  ]
+}
