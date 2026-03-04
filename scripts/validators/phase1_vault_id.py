@@ -179,7 +179,7 @@ class Phase1VaultIdentity(BaseValidator):
             self.ctx["all_fuses"] = fuses
             self.add("VC-025", "Registered fuses", Status.PASS if len(fuses) > 0 else Status.WARN,
                      f"{len(fuses)} fuse(s)",
-                     ", ".join(self.fmt_addr(f) for f in fuses[:10]) + ("..." if len(fuses) > 10 else ""))
+                     ", ".join(self.fmt_addr_named(f) for f in fuses[:10]) + ("..." if len(fuses) > 10 else ""))
         else:
             self.add("VC-025", "Registered fuses", Status.SKIP, None, "Call failed")
 
@@ -189,7 +189,7 @@ class Phase1VaultIdentity(BaseValidator):
             self.ctx["instant_withdrawal_fuses"] = iw_fuses
             self.add("VC-026", "Instant withdrawal fuses", Status.PASS if len(iw_fuses) > 0 else Status.WARN,
                      f"{len(iw_fuses)} fuse(s)",
-                     ", ".join(self.fmt_addr(f) for f in iw_fuses[:10]))
+                     ", ".join(self.fmt_addr_named(f) for f in iw_fuses[:10]))
         else:
             self.add("VC-026", "Instant withdrawal fuses", Status.SKIP, None, "Call failed")
 

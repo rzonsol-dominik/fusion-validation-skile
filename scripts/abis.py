@@ -232,6 +232,19 @@ PRICE_ORACLE_ABI = [
 # ---------------------------------------------------------------------------
 FEE_MANAGER_ABI = [
     _view("getPlasmaVaultAddress", outputs=[_addr("")]),
+
+    # Immutables
+    _view("PLASMA_VAULT", outputs=[_addr("")]),
+    _view("PERFORMANCE_FEE_ACCOUNT", outputs=[_addr("")]),
+    _view("MANAGEMENT_FEE_ACCOUNT", outputs=[_addr("")]),
+    _view("IPOR_DAO_MANAGEMENT_FEE", outputs=[_uint("")]),
+    _view("IPOR_DAO_PERFORMANCE_FEE", outputs=[_uint("")]),
+
+    # Fee queries
+    _view("getDepositFee", outputs=[_uint("")]),
+    _view("getTotalManagementFee", outputs=[_uint("")]),
+    _view("getTotalPerformanceFee", outputs=[_uint("")]),
+    _view("getIporDaoFeeRecipientAddress", outputs=[_addr("")]),
 ]
 
 # ---------------------------------------------------------------------------

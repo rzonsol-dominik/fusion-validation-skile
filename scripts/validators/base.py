@@ -73,6 +73,43 @@ class BaseValidator:
         except Exception:
             return False
 
+    def resolve_name(self, address: str) -> str:
+        """Resolve a human-readable name for an address.
+
+        Tries: ctx cache -> ERC20 symbol() -> Etherscan contract name.
+        """
+        cache = self.ctx.setdefault("_name_cache", {})
+        key = address.lower()
+        if key in cache:
+            return cache[key]
+
+        # Try ERC20 symbol
+        from abis import ERC20_ABI
+        token = self.contract(address, ERC20_ABI)
+        ok, symbol = self.call(token, "symbol")
+        if ok and symbol:
+            cache[key] = symbol
+            return symbol
+
+        # Try Etherscan contract name
+        chain = self.ctx.get("chain", "")
+        if chain:
+            from rpc import get_contract_name
+            name = get_contract_name(address, chain)
+            if name:
+                cache[key] = name
+                return name
+
+        cache[key] = ""
+        return ""
+
+    def fmt_addr_named(self, address: str) -> str:
+        """Format address with resolved name: 'Name (`0xaddr`)' or '`0xaddr`'."""
+        name = self.resolve_name(address)
+        if name:
+            return f"{name} ({self.fmt_addr(address)})"
+        return self.fmt_addr(address)
+
     def fmt_addr(self, address: str) -> str:
         return f"`{address}`"
 

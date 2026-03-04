@@ -60,7 +60,17 @@ class Phase3Markets(BaseValidator):
                 else:
                     decoded.append("0x" + hex_s)
 
-            sub_str = ", ".join(f"`{d[:10]}...`" for d in decoded[:5])
+            sub_parts = []
+            for d in decoded[:5]:
+                if len(d) == 42 and d.startswith("0x"):  # looks like address
+                    name = self.resolve_name(d)
+                    if name:
+                        sub_parts.append(f"{name} (`{d}`)")
+                    else:
+                        sub_parts.append(f"`{d}`")
+                else:
+                    sub_parts.append(f"`{d[:18]}...`")
+            sub_str = ", ".join(sub_parts)
             if len(decoded) > 5:
                 sub_str += f" (+{len(decoded)-5} more)"
 

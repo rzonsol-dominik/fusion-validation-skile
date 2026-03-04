@@ -91,3 +91,37 @@ def is_verified_on_etherscan(address: str, chain: str) -> Optional[bool]:
         return data.get("status") == "1"
     except Exception:
         return None
+
+
+def get_contract_name(address: str, chain: str) -> Optional[str]:
+    """Get the contract name from Etherscan's getsourcecode API.
+
+    Returns the ContractName string, or None on failure.
+    """
+    chain_cfg = CHAINS.get(chain)
+    if not chain_cfg:
+        return None
+
+    api_key = os.environ.get("ETHERSCAN_API_KEY")
+    if not api_key:
+        return None
+
+    try:
+        resp = requests.get(
+            "https://api.etherscan.io/v2/api",
+            params={
+                "chainid": chain_cfg["chain_id"],
+                "module": "contract",
+                "action": "getsourcecode",
+                "address": address,
+                "apikey": api_key,
+            },
+            timeout=10,
+        )
+        data = resp.json()
+        if data.get("status") == "1" and data.get("result"):
+            name = data["result"][0].get("ContractName", "")
+            return name if name else None
+        return None
+    except Exception:
+        return None

@@ -11,9 +11,11 @@ import os
 from dataclasses import asdict, dataclass, field
 from typing import Any, Optional
 
+import requests
 from web3 import Web3
 
 from abis import ACCESS_MANAGER_ABI
+from constants import CHAINS
 
 
 @dataclass
@@ -27,29 +29,76 @@ class RoleHolder:
 
 
 # ---------------------------------------------------------------------------
-# Binary search for contract creation block
+# Find contract creation block
 # ---------------------------------------------------------------------------
 
-def find_creation_block(w3: Web3, address: str) -> int:
-    """Find the block where a contract was deployed using binary search on eth_getCode.
+def _find_creation_block_etherscan(address: str, chain: str) -> Optional[int]:
+    """Find contract creation block via Etherscan V2 API (getcontractcreation).
 
-    Returns the earliest block where the contract has code.
+    Returns block number or None if unavailable.
+    """
+    api_key = os.environ.get("ETHERSCAN_API_KEY")
+    chain_cfg = CHAINS.get(chain)
+    if not api_key or not chain_cfg:
+        return None
+
+    try:
+        resp = requests.get(
+            "https://api.etherscan.io/v2/api",
+            params={
+                "chainid": chain_cfg["chain_id"],
+                "module": "contract",
+                "action": "getcontractcreation",
+                "contractaddresses": address,
+                "apikey": api_key,
+            },
+            timeout=15,
+        )
+        data = resp.json()
+        if data.get("status") != "1" or not data.get("result"):
+            return None
+        tx_hash = data["result"][0].get("txHash")
+        if not tx_hash:
+            return None
+        # Look up the transaction to get block number
+        tx_resp = requests.get(
+            "https://api.etherscan.io/v2/api",
+            params={
+                "chainid": chain_cfg["chain_id"],
+                "module": "proxy",
+                "action": "eth_getTransactionByHash",
+                "txhash": tx_hash,
+                "apikey": api_key,
+            },
+            timeout=15,
+        )
+        tx_data = tx_resp.json()
+        block_hex = tx_data.get("result", {}).get("blockNumber")
+        if block_hex:
+            return int(block_hex, 16)
+        return None
+    except Exception:
+        return None
+
+
+def _find_creation_block_binary(w3: Web3, address: str) -> int:
+    """Find contract creation block via binary search on eth_getCode.
+
+    Fallback method (~25 RPC calls). May fail on chains that don't support
+    historical eth_getCode (e.g. Arbitrum).
     """
     address = w3.to_checksum_address(address)
     hi = w3.eth.block_number
     lo = 0
 
-    # Quick check: if no code at latest block, it's not a contract
     code = w3.eth.get_code(address, block_identifier=hi)
     if len(code) == 0:
         return 0
 
-    # Check block 0 — if code exists, it's a genesis contract
     code = w3.eth.get_code(address, block_identifier=lo)
     if len(code) > 0:
         return 0
 
-    # Binary search
     while lo < hi - 1:
         mid = (lo + hi) // 2
         code = w3.eth.get_code(address, block_identifier=mid)
@@ -61,23 +110,57 @@ def find_creation_block(w3: Web3, address: str) -> int:
     return hi
 
 
+def find_creation_block(w3: Web3, address: str, chain: str) -> int:
+    """Find the block where a contract was deployed.
+
+    Tries Etherscan API first (fast, works on all chains),
+    falls back to binary search on eth_getCode.
+    """
+    # Try Etherscan first
+    block = _find_creation_block_etherscan(address, chain)
+    if block is not None:
+        print(f"  [events] Creation block from Etherscan: {block}")
+        return block
+
+    # Fallback to binary search
+    print(f"  [events] Etherscan unavailable, using binary search...")
+    return _find_creation_block_binary(w3, address)
+
+
 # ---------------------------------------------------------------------------
 # Chunked event scanning
 # ---------------------------------------------------------------------------
+
+# Default chunk sizes per chain (L2s have faster/smaller blocks)
+_CHAIN_CHUNK_DEFAULTS = {
+    "eth-mainnet": (2_000, 100),
+    "arb-mainnet": (5_000_000, 100_000),
+    "base-mainnet": (500_000, 10_000),
+    "opt-mainnet": (500_000, 10_000),
+}
+
 
 def scan_events(
     w3: Web3,
     am_addr: str,
     from_block: int,
     to_block: int,
-    chunk_size: int = 2000,
-    min_chunk: int = 100,
+    chunk_size: int = 0,
+    min_chunk: int = 0,
+    chain: str = "",
 ) -> list[dict]:
     """Scan RoleGranted and RoleRevoked events in chunks.
 
     Auto-halves chunk size on provider errors (range too large).
     Returns list of event dicts with keys: event, blockNumber, args.
     """
+    if chunk_size == 0 or min_chunk == 0:
+        defaults = _CHAIN_CHUNK_DEFAULTS.get(chain, (2_000, 100))
+        if chunk_size == 0:
+            chunk_size = defaults[0]
+        if min_chunk == 0:
+            min_chunk = defaults[1]
+
     am_addr = w3.to_checksum_address(am_addr)
     contract = w3.eth.contract(address=am_addr, abi=ACCESS_MANAGER_ABI)
 
@@ -246,7 +329,7 @@ def discover_role_holders(
         print(f"  [events] Cache hit: {len(cached_events)} events up to block {last_scanned}")
     else:
         print(f"  [events] No cache, finding creation block...")
-        creation_block = find_creation_block(w3, am_addr)
+        creation_block = find_creation_block(w3, am_addr, chain)
         print(f"  [events] AccessManager deployed at block {creation_block}")
         last_scanned = creation_block - 1
         cached_events = []
@@ -259,7 +342,7 @@ def discover_role_holders(
     if scan_from <= scan_to:
         total_blocks = scan_to - scan_from + 1
         print(f"  [events] Scanning blocks {scan_from} to {scan_to} ({total_blocks:,} blocks)...")
-        new_events = scan_events(w3, am_addr, scan_from, scan_to)
+        new_events = scan_events(w3, am_addr, scan_from, scan_to, chain=chain)
         print(f"  [events] Found {len(new_events)} new events")
 
     # Merge all events

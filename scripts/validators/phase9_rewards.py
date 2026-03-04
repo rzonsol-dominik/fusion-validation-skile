@@ -89,7 +89,7 @@ class Phase9Rewards(BaseValidator):
             if reward_fuses:
                 self.add("RW-015", "Reward fuses", Status.PASS,
                          f"{len(reward_fuses)} fuse(s)",
-                         ", ".join(self.fmt_addr(f) for f in reward_fuses[:10]))
+                         ", ".join(self.fmt_addr_named(f) for f in reward_fuses[:10]))
 
                 # RW-016: Each reward fuse is supported
                 for fuse in reward_fuses:
