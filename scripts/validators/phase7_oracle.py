@@ -1,4 +1,4 @@
-"""Phase 7: Price Oracle (PO-001 to PO-022)."""
+"""Phase 7: Price Oracle (PO-001 to PO-031)."""
 
 from abis import PRICE_ORACLE_ABI
 from constants import USD_QUOTE_CURRENCY, ZERO_ADDRESS
@@ -37,19 +37,7 @@ class Phase7Oracle(BaseValidator):
         else:
             self.add("PO-002", "Quote currency", Status.SKIP, None, "Call failed")
 
-        # PO-003: Quote currency decimals
-        ok, qdecimals = self.call(oracle, "QUOTE_CURRENCY_DECIMALS")
-        if ok:
-            self.ctx["oracle_decimals"] = qdecimals
-            if qdecimals in (8, 18):
-                self.add("PO-003", "Quote currency decimals", Status.PASS, str(qdecimals))
-            else:
-                self.add("PO-003", "Quote currency decimals", Status.WARN,
-                         str(qdecimals), "Unusual decimals — expected 8 or 18")
-        else:
-            self.add("PO-003", "Quote currency decimals", Status.SKIP, None, "Call failed")
-
-        # PO-005: Asset price (underlying)
+        # PO-003: Asset price (underlying)
         asset_addr = self.ctx.get("asset")
         if asset_addr:
             ok, result = self.call(oracle, "getAssetPrice", self.w3.to_checksum_address(asset_addr))
@@ -57,30 +45,16 @@ class Phase7Oracle(BaseValidator):
                 price, price_dec = result
                 if price > 0:
                     human = price / (10 ** price_dec)
-                    self.add("PO-005", f"Underlying asset price ({self.ctx.get('asset_symbol', '')})",
+                    self.add("PO-003", f"Underlying asset price ({self.ctx.get('asset_symbol', '')})",
                              Status.PASS, f"${human:,.6f}")
                 else:
-                    self.add("PO-005", "Underlying asset price", Status.FAIL,
+                    self.add("PO-003", "Underlying asset price", Status.FAIL,
                              "0", "Zero price from oracle")
             else:
-                self.add("PO-005", "Underlying asset price", Status.WARN,
+                self.add("PO-003", "Underlying asset price", Status.WARN,
                          None, f"Call failed: {result}")
 
-        # PO-006: Price feed source for underlying
-        if asset_addr:
-            ok, source = self.call(oracle, "getSourceOfAssetPrice",
-                                   self.w3.to_checksum_address(asset_addr))
-            if ok:
-                if self.is_zero(source):
-                    self.add("PO-006", "Underlying price source", Status.INFO,
-                             "Default (Chainlink Registry)")
-                else:
-                    self.add("PO-006", "Underlying price source", Status.INFO,
-                             source, "Custom price source")
-            else:
-                self.add("PO-006", "Underlying price source", Status.SKIP, None, "Call failed")
-
-        # PO-010: Substrate token prices
+        # PO-004: Substrate token prices
         market_substrates = self.ctx.get("market_substrates", {})
         checked_tokens = set()
 
@@ -100,22 +74,48 @@ class Phase7Oracle(BaseValidator):
                         price, price_dec = result
                         if price > 0:
                             human = price / (10 ** price_dec)
-                            self.add(f"PO-010-{self.fmt_addr(token_addr)}",
+                            self.add(f"PO-004-{self.fmt_addr(token_addr)}",
                                      f"Substrate token {self.fmt_addr(token_addr)} price",
                                      Status.PASS, f"${human:,.6f}")
                         else:
-                            self.add(f"PO-010-{self.fmt_addr(token_addr)}",
+                            self.add(f"PO-004-{self.fmt_addr(token_addr)}",
                                      f"Substrate token {self.fmt_addr(token_addr)} price",
                                      Status.WARN, "0",
                                      "Zero price — may be expected for non-token substrates")
                     else:
-                        self.add(f"PO-010-{self.fmt_addr(token_addr)}",
+                        self.add(f"PO-004-{self.fmt_addr(token_addr)}",
                                  f"Substrate token {self.fmt_addr(token_addr)} price",
                                  Status.INFO, "No price feed",
                                  "May be expected for pool/vault substrates")
 
         if not checked_tokens and not asset_addr:
-            self.add("PO-010", "Substrate token prices", Status.SKIP,
+            self.add("PO-004", "Substrate token prices", Status.SKIP,
                      None, "No substrate tokens to check")
+
+        # PO-030: Quote currency decimals
+        ok, qdecimals = self.call(oracle, "QUOTE_CURRENCY_DECIMALS")
+        if ok:
+            self.ctx["oracle_decimals"] = qdecimals
+            if qdecimals in (8, 18):
+                self.add("PO-030", "Quote currency decimals", Status.PASS, str(qdecimals))
+            else:
+                self.add("PO-030", "Quote currency decimals", Status.WARN,
+                         str(qdecimals), "Unusual decimals — expected 8 or 18")
+        else:
+            self.add("PO-030", "Quote currency decimals", Status.SKIP, None, "Call failed")
+
+        # PO-031: Price feed source for underlying
+        if asset_addr:
+            ok, source = self.call(oracle, "getSourceOfAssetPrice",
+                                   self.w3.to_checksum_address(asset_addr))
+            if ok:
+                if self.is_zero(source):
+                    self.add("PO-031", "Underlying price source", Status.INFO,
+                             "Default (Chainlink Registry)")
+                else:
+                    self.add("PO-031", "Underlying price source", Status.INFO,
+                             source, "Custom price source")
+            else:
+                self.add("PO-031", "Underlying price source", Status.SKIP, None, "Call failed")
 
         return self.results

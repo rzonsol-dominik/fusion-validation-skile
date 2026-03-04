@@ -1,4 +1,4 @@
-"""Phase 4: Market Interactions & Dependencies (MI-001 to MI-022)."""
+"""Phase 4: Market Interactions & Dependencies (MI-001 to MI-030)."""
 
 from abis import PLASMA_VAULT_ABI
 from constants import MARKETS
@@ -39,67 +39,78 @@ class Phase4Interactions(BaseValidator):
 
         self.ctx["dependency_graph"] = dep_graph
 
-        # MI-005: Cycle detection in dependency graph
-        if dep_graph:
-            cycles = self._detect_cycles(dep_graph)
-            if cycles:
-                self.add("MI-005", "Dependency cycles", Status.FAIL,
-                         f"{len(cycles)} cycle(s) detected",
-                         " | ".join(str(c) for c in cycles))
-            else:
-                self.add("MI-005", "Dependency cycles", Status.PASS, "No cycles detected")
-
-        # MI-010: Dependency completeness — all referenced markets should be active
+        # MI-002: Dependency completeness — all referenced markets should be active
         for market_id, deps in dep_graph.items():
             market_name = MARKETS.get(market_id, f"Market({market_id})")
             missing = [d for d in deps if d not in active_markets]
             if missing:
                 missing_names = [MARKETS.get(d, str(d)) for d in missing]
-                self.add(f"MI-010-{market_id}", f"{market_name} dep completeness",
+                self.add(f"MI-002-{market_id}", f"{market_name} dep completeness",
                          Status.WARN, f"Missing: {missing_names}",
                          "Dependencies reference markets without substrates")
             elif deps:
-                self.add(f"MI-010-{market_id}", f"{market_name} dep completeness",
+                self.add(f"MI-002-{market_id}", f"{market_name} dep completeness",
                          Status.PASS, f"All {len(deps)} deps are active markets")
 
-        # MI-015: Market limits
+        # MI-003: Cycle detection in dependency graph
+        if dep_graph:
+            cycles = self._detect_cycles(dep_graph)
+            if cycles:
+                self.add("MI-003", "Dependency cycles", Status.FAIL,
+                         f"{len(cycles)} cycle(s) detected",
+                         " | ".join(str(c) for c in cycles))
+            else:
+                self.add("MI-003", "Dependency cycles", Status.PASS, "No cycles detected")
+
+        # MI-004: Market limits
         ok, limits_active = self.call(vault, "isMarketsLimitsActivated")
         if ok:
             self.ctx["markets_limits_active"] = limits_active
-            self.add("MI-015", "Market limits activated", Status.INFO,
+            self.add("MI-004", "Market limits activated", Status.INFO,
                      "Yes" if limits_active else "No")
 
             if limits_active:
+                zero_limit_markets = []
                 for market_id in active_markets:
                     market_name = MARKETS.get(market_id, f"Market({market_id})")
                     ok, limit = self.call(vault, "getMarketLimit", market_id)
                     if ok:
                         max_uint = 2**256 - 1
                         if limit == max_uint:
-                            self.add(f"MI-015-{market_id}", f"{market_name} limit",
+                            self.add(f"MI-005-{market_id}", f"{market_name} limit",
                                      Status.INFO, "Unlimited")
                         elif limit == 0:
-                            self.add(f"MI-015-{market_id}", f"{market_name} limit",
+                            zero_limit_markets.append(market_name)
+                            self.add(f"MI-005-{market_id}", f"{market_name} limit",
                                      Status.WARN, "0",
                                      "Market limit is zero — no allocation possible")
                         else:
                             decimals = self.ctx.get("asset_decimals", 18)
-                            self.add(f"MI-015-{market_id}", f"{market_name} limit",
+                            self.add(f"MI-005-{market_id}", f"{market_name} limit",
                                      Status.INFO, self.fmt_wei(limit, decimals))
-        else:
-            self.add("MI-015", "Market limits", Status.SKIP, None, "Call failed")
 
-        # MI-020: Total assets per market
+                # MI-006: Market Limits Coverage
+                if zero_limit_markets:
+                    self.add("MI-006", "Market limits coverage", Status.WARN,
+                             f"{len(zero_limit_markets)} market(s) with zero limit",
+                             f"Markets with limit=0: {', '.join(zero_limit_markets)}")
+                else:
+                    self.add("MI-006", "Market limits coverage", Status.PASS,
+                             f"All {len(active_markets)} market(s) have limit > 0")
+        else:
+            self.add("MI-004", "Market limits", Status.SKIP, None, "Call failed")
+
+        # MI-030: Total assets per market
         for market_id in active_markets:
             market_name = MARKETS.get(market_id, f"Market({market_id})")
             ok, balance = self.call(vault, "totalAssetsInMarket", market_id)
             if ok:
                 decimals = self.ctx.get("asset_decimals", 18)
-                self.add(f"MI-020-{market_id}", f"{market_name} balance",
+                self.add(f"MI-030-{market_id}", f"{market_name} balance",
                          Status.INFO, f"{self.fmt_wei(balance, decimals)} {self.ctx.get('asset_symbol', '')}",
                          f"Raw: {balance}")
             else:
-                self.add(f"MI-020-{market_id}", f"{market_name} balance",
+                self.add(f"MI-030-{market_id}", f"{market_name} balance",
                          Status.SKIP, None, "Call failed")
 
         return self.results

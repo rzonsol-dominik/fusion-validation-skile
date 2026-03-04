@@ -1,4 +1,4 @@
-"""Phase 3: Market Configuration (MC-001 to MC-022)."""
+"""Phase 3: Market Configuration (MC-001 to MC-012)."""
 
 from abis import PLASMA_VAULT_ABI
 from constants import ERC4626_VAULT_MARKET_END, ERC4626_VAULT_MARKET_START, MARKETS, META_MORPHO_MARKET_END, META_MORPHO_MARKET_START
@@ -106,7 +106,7 @@ class Phase3Markets(BaseValidator):
     def run(self):
         vault = self.contract(self.vault_address, PLASMA_VAULT_ABI)
 
-        # MC-001: Discover active markets by probing known market IDs
+        # MC-012: Discover active markets by probing known market IDs
         active_markets = []
         market_substrates = {}
         market_balance_fuses = {}
@@ -130,14 +130,43 @@ class Phase3Markets(BaseValidator):
 
         if active_markets:
             market_names = [f"{MARKETS.get(m, str(m))}({m})" for m in active_markets]
-            self.add("MC-001", "Active markets discovered", Status.PASS,
+            self.add("MC-012", "Active markets discovered", Status.PASS,
                      f"{len(active_markets)} market(s)",
                      ", ".join(market_names))
         else:
-            self.add("MC-001", "Active markets discovered", Status.WARN,
+            self.add("MC-012", "Active markets discovered", Status.WARN,
                      "0 markets", "No active markets found — vault may be unconfigured")
 
-        # MC-002: Per-market substrate details
+        # MC-007: ERC20_VAULT_BALANCE market must exist
+        if 7 in active_markets:
+            self.add("MC-007", "ERC20_VAULT_BALANCE market", Status.PASS,
+                     "Market 7 is active")
+        else:
+            self.add("MC-007", "ERC20_VAULT_BALANCE market", Status.WARN,
+                     "Market 7 not found",
+                     "ERC20_VAULT_BALANCE (id=7) should be present for proper vault balance tracking")
+
+        # MC-001: Balance fuse check per market
+        # Balance fuses are stored separately from action fuses (getFuses()).
+        # We verify balance fuse presence by calling totalAssetsInMarket() —
+        # if it succeeds, a balance fuse is configured for that market.
+        all_fuses = self.ctx.get("all_fuses", [])
+        for market_id in active_markets:
+            market_name = MARKETS.get(market_id, f"Market({market_id})")
+            ok, balance = self.call(vault, "totalAssetsInMarket", market_id)
+            if ok:
+                market_balance_fuses[market_id] = True
+                decimals = self.ctx.get("asset_decimals", 18)
+                self.add(f"MC-001-{market_id}", f"{market_name} balance fuse",
+                         Status.PASS, f"Active (balance: {self.fmt_wei(balance, decimals)})")
+            else:
+                self.add(f"MC-001-{market_id}", f"{market_name} balance fuse",
+                         Status.WARN, "Not configured or call failed",
+                         "totalAssetsInMarket() reverted — no balance fuse registered")
+
+        self.ctx["market_balance_fuses"] = market_balance_fuses
+
+        # MC-003: Per-market substrate details
         for market_id in active_markets:
             market_name = MARKETS.get(market_id, f"Market({market_id})")
             substrates = market_substrates.get(market_id, [])
@@ -164,41 +193,10 @@ class Phase3Markets(BaseValidator):
             if len(substrates) > 5:
                 sub_str += f" (+{len(substrates)-5} more)"
 
-            self.add(f"MC-002-{market_id}", f"{market_name} substrates",
+            self.add(f"MC-003-{market_id}", f"{market_name} substrates",
                      Status.INFO, f"{len(substrates)} substrate(s)", sub_str)
 
-        # MC-005: Balance fuse check per market
-        # Balance fuses are stored separately from action fuses (getFuses()).
-        # We verify balance fuse presence by calling totalAssetsInMarket() —
-        # if it succeeds, a balance fuse is configured for that market.
-        all_fuses = self.ctx.get("all_fuses", [])
-        for market_id in active_markets:
-            market_name = MARKETS.get(market_id, f"Market({market_id})")
-            ok, balance = self.call(vault, "totalAssetsInMarket", market_id)
-            if ok:
-                market_balance_fuses[market_id] = True
-                decimals = self.ctx.get("asset_decimals", 18)
-                self.add(f"MC-005-{market_id}", f"{market_name} balance fuse",
-                         Status.PASS, f"Active (balance: {self.fmt_wei(balance, decimals)})")
-            else:
-                self.add(f"MC-005-{market_id}", f"{market_name} balance fuse",
-                         Status.WARN, "Not configured or call failed",
-                         "totalAssetsInMarket() reverted — no balance fuse registered")
-
-        self.ctx["market_balance_fuses"] = market_balance_fuses
-
-        # MC-010: Fuse registration — all fuses are contracts
-        for fuse in all_fuses:
-            if not self.is_contract(fuse):
-                self.add("MC-010", f"Fuse {self.fmt_addr(fuse)} is contract",
-                         Status.FAIL, fuse, "Registered fuse has no code")
-                break
-        else:
-            if all_fuses:
-                self.add("MC-010", "All registered fuses are contracts", Status.PASS,
-                         f"{len(all_fuses)} fuse(s) verified")
-
-        # MC-015: Substrate verification — each substrate granted check
+        # MC-004: Substrate verification — each substrate granted check
         for market_id in active_markets:
             market_name = MARKETS.get(market_id, f"Market({market_id})")
             substrates = market_substrates.get(market_id, [])
@@ -210,12 +208,12 @@ class Phase3Markets(BaseValidator):
                     break
 
             if substrates:
-                self.add(f"MC-015-{market_id}", f"{market_name} substrates granted",
+                self.add(f"MC-004-{market_id}", f"{market_name} substrates granted",
                          Status.PASS if all_granted else Status.WARN,
                          f"{len(substrates)} substrate(s)",
                          "" if all_granted else "Some substrates not granted")
 
-        # MC-020: Fuse support check — all fuses in list are supported
+        # MC-005: Fuse support check — all fuses in list are supported
         unsupported = []
         for fuse in all_fuses:
             ok, supported = self.call(vault, "isFuseSupported", fuse)
@@ -223,11 +221,22 @@ class Phase3Markets(BaseValidator):
                 unsupported.append(fuse)
 
         if unsupported:
-            self.add("MC-020", "Unsupported fuses in registry", Status.WARN,
+            self.add("MC-005", "Unsupported fuses in registry", Status.WARN,
                      f"{len(unsupported)} unsupported",
                      ", ".join(self.fmt_addr(f) for f in unsupported))
         elif all_fuses:
-            self.add("MC-020", "All fuses marked as supported", Status.PASS,
+            self.add("MC-005", "All fuses marked as supported", Status.PASS,
                      f"{len(all_fuses)} fuse(s)")
+
+        # MC-010: Fuse registration — all fuses are contracts
+        for fuse in all_fuses:
+            if not self.is_contract(fuse):
+                self.add("MC-010", f"Fuse {self.fmt_addr(fuse)} is contract",
+                         Status.FAIL, fuse, "Registered fuse has no code")
+                break
+        else:
+            if all_fuses:
+                self.add("MC-010", "All registered fuses are contracts", Status.PASS,
+                         f"{len(all_fuses)} fuse(s) verified")
 
         return self.results

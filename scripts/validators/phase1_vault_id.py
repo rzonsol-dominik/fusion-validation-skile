@@ -1,9 +1,22 @@
-"""Phase 1: Vault Identity & Core Configuration (VC-001 to VC-029)."""
+"""Phase 1: Vault Identity & Core Configuration (VC-001 to VC-056)."""
 
-from abis import EIP1967_IMPLEMENTATION_SLOT, ERC20_ABI, PLASMA_VAULT_ABI, PRICE_ORACLE_ABI
-from constants import ZERO_ADDRESS
+from abis import ACCESS_MANAGER_ABI, EIP1967_IMPLEMENTATION_SLOT, ERC20_ABI, PLASMA_VAULT_ABI, PRICE_ORACLE_ABI
+from constants import ROLES, ZERO_ADDRESS
 
 from .base import BaseValidator, Status
+
+# Storage slot for WithdrawManager address in PlasmaVault
+# keccak256(abi.encode(uint256(keccak256("ipor-fusion.plasma-vault.withdraw-manager.storage")) - 1)) & ~bytes32(uint256(0xff))
+WITHDRAW_MANAGER_STORAGE_SLOT = "0x465d0d3e233965c3bc20e1506c3ce7a0e5d19f655c6cc5067a3f28bc10083100"
+
+# ERC4626 deposit selector: deposit(uint256,address)
+DEPOSIT_SELECTOR = bytes.fromhex("6e553f65")
+
+# ERC20 transfer selector: transfer(address,uint256)
+TRANSFER_SELECTOR = bytes.fromhex("a9059cbb")
+
+# PUBLIC_ROLE = type(uint64).max
+PUBLIC_ROLE = 2**64 - 1
 
 
 class Phase1VaultIdentity(BaseValidator):
@@ -76,6 +89,21 @@ class Phase1VaultIdentity(BaseValidator):
         except Exception as e:
             self.add("VC-005", "UUPS implementation", Status.SKIP, None, str(e))
 
+        # VC-006: Vault initialized (CRITICAL)
+        # Call proxyInitialize with zero args — should revert if already initialized
+        try:
+            selector = self.w3.keccak(text="proxyInitialize(address,address)")[:4]
+            data = selector + b'\x00' * 64  # two zero-address params
+            self.w3.eth.call({"to": self.vault_address, "data": data})
+            # If call succeeds, vault is NOT properly initialized
+            self.add("VC-006", "Vault initialized", Status.FAIL,
+                     "proxyInitialize did not revert",
+                     "Vault may not be initialized — re-initialization possible")
+        except Exception:
+            # Revert is expected — vault is initialized
+            self.add("VC-006", "Vault initialized", Status.PASS,
+                     "proxyInitialize reverts", "Vault is properly initialized")
+
         # VC-010: Total supply cap
         ok, cap = self.call(vault, "getTotalSupplyCap")
         if ok:
@@ -118,82 +146,125 @@ class Phase1VaultIdentity(BaseValidator):
         else:
             self.add("VC-012", "Decimals", Status.SKIP, None, "Call failed")
 
-        # VC-013: Total supply
+        # VC-013: WithdrawManager (read from storage)
+        try:
+            wm_raw = self.w3.eth.get_storage_at(self.vault_address, WITHDRAW_MANAGER_STORAGE_SLOT)
+            wm_addr = "0x" + wm_raw[-20:].hex()
+            if not self.is_zero(wm_addr):
+                self.ctx["withdraw_manager"] = wm_addr
+                is_c = self.is_contract(wm_addr)
+                self.add("VC-013", "WithdrawManager", Status.PASS if is_c else Status.WARN,
+                         wm_addr, "Contract" if is_c else "WARNING: not a contract")
+            else:
+                self.add("VC-013", "WithdrawManager", Status.INFO, "Not configured",
+                         "No WithdrawManager set (zero address in storage)")
+        except Exception as e:
+            self.add("VC-013", "WithdrawManager", Status.SKIP, None, str(e))
+
+        # VC-014: Public vault status
+        am_addr = self.ctx.get("access_manager")
+        if am_addr:
+            am = self.contract(am_addr, ACCESS_MANAGER_ABI)
+            ok, role_id = self.call(am, "getTargetFunctionRole", self.vault_address, DEPOSIT_SELECTOR)
+            if ok:
+                if role_id == PUBLIC_ROLE:
+                    self.add("VC-014", "Public vault status", Status.INFO,
+                             "Public", "deposit() has PUBLIC_ROLE — anyone can deposit")
+                else:
+                    role_name = ROLES.get(role_id, f"Role({role_id})")
+                    self.add("VC-014", "Public vault status", Status.INFO,
+                             f"Restricted ({role_name})",
+                             f"deposit() requires role {role_id}")
+            else:
+                self.add("VC-014", "Public vault status", Status.SKIP, None, "Call failed")
+
+            # VC-015: Share transfers
+            ok, role_id = self.call(am, "getTargetFunctionRole", self.vault_address, TRANSFER_SELECTOR)
+            if ok:
+                if role_id == PUBLIC_ROLE:
+                    self.add("VC-015", "Share transfers", Status.INFO,
+                             "Enabled", "transfer() has PUBLIC_ROLE — shares are transferable")
+                else:
+                    role_name = ROLES.get(role_id, f"Role({role_id})")
+                    self.add("VC-015", "Share transfers", Status.INFO,
+                             f"Restricted ({role_name})",
+                             f"transfer() requires role {role_id}")
+            else:
+                self.add("VC-015", "Share transfers", Status.SKIP, None, "Call failed")
+        else:
+            self.add("VC-014", "Public vault status", Status.SKIP, None, "AccessManager not available")
+            self.add("VC-015", "Share transfers", Status.SKIP, None, "AccessManager not available")
+
+        # VC-016: RewardsClaimManager
+        ok, rcm = self.call(vault, "getRewardsClaimManagerAddress")
+        if ok:
+            if self.is_zero(rcm):
+                self.ctx["rewards_manager"] = None
+                self.add("VC-016", "RewardsClaimManager", Status.INFO, "Not configured")
+            else:
+                self.ctx["rewards_manager"] = rcm
+                self.add("VC-016", "RewardsClaimManager", Status.PASS, rcm)
+        else:
+            self.add("VC-016", "RewardsClaimManager", Status.SKIP, None, "Call failed")
+
+        # VC-050: Total supply
         ok, supply = self.call(vault, "totalSupply")
         if ok:
             self.ctx["total_supply"] = supply
             decimals = self.ctx.get("asset_decimals", 18) + 2
-            self.add("VC-013", "Total supply", Status.INFO,
+            self.add("VC-050", "Total supply", Status.INFO,
                      self.fmt_wei(supply, decimals), f"Raw: {supply}")
         else:
-            self.add("VC-013", "Total supply", Status.SKIP, None, "Call failed")
+            self.add("VC-050", "Total supply", Status.SKIP, None, "Call failed")
 
-        # VC-014: Total assets
+        # VC-051: Total assets
         ok, total_assets = self.call(vault, "totalAssets")
         if ok:
             self.ctx["total_assets"] = total_assets
             decimals = self.ctx.get("asset_decimals", 18)
-            self.add("VC-014", "Total assets", Status.INFO,
+            self.add("VC-051", "Total assets", Status.INFO,
                      f"{self.fmt_wei(total_assets, decimals)} {self.ctx.get('asset_symbol', '')}",
                      f"Raw: {total_assets}")
         else:
-            self.add("VC-014", "Total assets", Status.SKIP, None, "Call failed")
+            self.add("VC-051", "Total assets", Status.SKIP, None, "Call failed")
 
-        # VC-015: Share price sanity
+        # VC-052: Share price sanity
         supply = self.ctx.get("total_supply")
         total_assets = self.ctx.get("total_assets")
         if supply is not None and total_assets is not None and supply > 0:
             ok, shares = self.call(vault, "convertToShares", 10**self.ctx.get("asset_decimals", 18))
             if ok and shares > 0:
                 price = (10**self.ctx.get("asset_decimals", 18)) / (shares / 10**(self.ctx.get("asset_decimals", 18) + 2))
-                self.add("VC-015", "Share price sanity", Status.PASS,
+                self.add("VC-052", "Share price sanity", Status.PASS,
                          f"1 asset ≈ {shares} shares")
             else:
-                self.add("VC-015", "Share price sanity", Status.INFO, None, "Could not compute share price")
+                self.add("VC-052", "Share price sanity", Status.INFO, None, "Could not compute share price")
         elif supply == 0:
-            self.add("VC-015", "Share price sanity", Status.INFO, "N/A", "No shares minted yet")
+            self.add("VC-052", "Share price sanity", Status.INFO, "N/A", "No shares minted yet")
         else:
-            self.add("VC-015", "Share price sanity", Status.SKIP)
+            self.add("VC-052", "Share price sanity", Status.SKIP)
 
-        # VC-020: WithdrawManager
-        # Read from governance — not a direct call on vault, check ctx or make a storage read
-        # The WithdrawManager address is typically in the vault's storage
-        # We try getInstantWithdrawalFuses first, then check for WithdrawManager via access control
-        # For now, we'll try to find it via the AccessManager in phase 2
-
-        # VC-021: RewardsClaimManager
-        ok, rcm = self.call(vault, "getRewardsClaimManagerAddress")
-        if ok:
-            if self.is_zero(rcm):
-                self.ctx["rewards_manager"] = None
-                self.add("VC-021", "RewardsClaimManager", Status.INFO, "Not configured")
-            else:
-                self.ctx["rewards_manager"] = rcm
-                self.add("VC-021", "RewardsClaimManager", Status.PASS, rcm)
-        else:
-            self.add("VC-021", "RewardsClaimManager", Status.SKIP, None, "Call failed")
-
-        # VC-025: Fuses list
+        # VC-053: Fuses list
         ok, fuses = self.call(vault, "getFuses")
         if ok:
             self.ctx["all_fuses"] = fuses
-            self.add("VC-025", "Registered fuses", Status.PASS if len(fuses) > 0 else Status.WARN,
+            self.add("VC-053", "Registered fuses", Status.PASS if len(fuses) > 0 else Status.WARN,
                      f"{len(fuses)} fuse(s)",
                      ", ".join(self.fmt_addr_named(f) for f in fuses[:10]) + ("..." if len(fuses) > 10 else ""))
         else:
-            self.add("VC-025", "Registered fuses", Status.SKIP, None, "Call failed")
+            self.add("VC-053", "Registered fuses", Status.SKIP, None, "Call failed")
 
-        # VC-026: Instant withdrawal fuses
+        # VC-054: Instant withdrawal fuses
         ok, iw_fuses = self.call(vault, "getInstantWithdrawalFuses")
         if ok:
             self.ctx["instant_withdrawal_fuses"] = iw_fuses
-            self.add("VC-026", "Instant withdrawal fuses", Status.PASS if len(iw_fuses) > 0 else Status.WARN,
+            self.add("VC-054", "Instant withdrawal fuses", Status.PASS if len(iw_fuses) > 0 else Status.WARN,
                      f"{len(iw_fuses)} fuse(s)",
                      ", ".join(self.fmt_addr_named(f) for f in iw_fuses[:10]))
         else:
-            self.add("VC-026", "Instant withdrawal fuses", Status.SKIP, None, "Call failed")
+            self.add("VC-054", "Instant withdrawal fuses", Status.SKIP, None, "Call failed")
 
-        # VC-027: Asset price in oracle
+        # VC-055: Asset price in oracle
         oracle_addr = self.ctx.get("oracle")
         asset_addr = self.ctx.get("asset")
         if oracle_addr and asset_addr:
@@ -203,24 +274,24 @@ class Phase1VaultIdentity(BaseValidator):
                 price, price_decimals = result
                 if price > 0:
                     human_price = price / (10 ** price_decimals)
-                    self.add("VC-027", "Asset price in oracle", Status.PASS,
+                    self.add("VC-055", "Asset price in oracle", Status.PASS,
                              f"${human_price:,.4f}",
                              f"Raw: {price}, decimals: {price_decimals}")
                 else:
-                    self.add("VC-027", "Asset price in oracle", Status.FAIL,
+                    self.add("VC-055", "Asset price in oracle", Status.FAIL,
                              "0", "Price is zero — oracle misconfigured")
             else:
-                self.add("VC-027", "Asset price in oracle", Status.WARN, None,
+                self.add("VC-055", "Asset price in oracle", Status.WARN, None,
                          f"Oracle call failed: {result}")
         else:
-            self.add("VC-027", "Asset price in oracle", Status.SKIP, None,
+            self.add("VC-055", "Asset price in oracle", Status.SKIP, None,
                      "Oracle or asset not available")
 
-        # VC-029: Vault is a contract (basic sanity)
+        # VC-056: Vault is a contract (basic sanity)
         if self.is_contract(self.vault_address):
-            self.add("VC-029", "Vault is a contract", Status.PASS, self.vault_address)
+            self.add("VC-056", "Vault is a contract", Status.PASS, self.vault_address)
         else:
-            self.add("VC-029", "Vault is a contract", Status.FAIL, self.vault_address,
+            self.add("VC-056", "Vault is a contract", Status.FAIL, self.vault_address,
                      "Address has no code — not a contract")
 
         return self.results

@@ -1,9 +1,19 @@
-"""Phase 2: Access Control (AC-001 to AC-022)."""
+"""Phase 2: Access Control (AC-001 to AC-051)."""
 
 from abis import ACCESS_MANAGER_ABI
 from constants import EXPECTED_FUNCTION_ROLES, GOVERNANCE_SELECTORS, INSPECTABLE_ROLES, ROLES, TECH_ROLES, ZERO_ADDRESS
 
 from .base import BaseValidator, Status
+
+# Maps role ID to markdown-aligned check ID for role holder reporting
+ROLE_TO_CHECK_ID = {
+    0: "AC-001",     # ADMIN_ROLE Assignment
+    1: "AC-003",     # OWNER_ROLE Assignment
+    2: "AC-007",     # GUARDIAN_ROLE Assignment
+    100: "AC-004",   # ATOMIST_ROLE Assignment
+    200: "AC-005",   # ALPHA_ROLE Assignment
+    300: "AC-015",   # FUSE_MANAGER_ROLE Assignment
+}
 
 
 class Phase2AccessControl(BaseValidator):
@@ -13,38 +23,47 @@ class Phase2AccessControl(BaseValidator):
     def run(self):
         am_addr = self.ctx.get("access_manager")
         if not am_addr:
-            self.add("AC-001", "AccessManager available", Status.SKIP,
+            self.add("AC-050", "AccessManager available", Status.SKIP,
                      None, "AccessManager not found in Phase 1")
             return self.results
 
         am = self.contract(am_addr, ACCESS_MANAGER_ABI)
 
-        # AC-001: AccessManager is a contract
+        # AC-050: AccessManager is a contract
         if self.is_contract(am_addr):
-            self.add("AC-001", "AccessManager is a contract", Status.PASS, am_addr)
+            self.add("AC-050", "AccessManager is a contract", Status.PASS, am_addr)
         else:
-            self.add("AC-001", "AccessManager is a contract", Status.FAIL, am_addr)
+            self.add("AC-050", "AccessManager is a contract", Status.FAIL, am_addr)
             return self.results
 
-        # AC-002: Role holders — discover via event logs (with fallback)
+        # Role holders — discover via event logs (with fallback)
         self._discover_role_holders_from_events(am)
 
-        # AC-005: Role admin hierarchy
+        # AC-002: No Unauthorized ADMIN_ROLE Holders
+        self._check_no_admin_holders()
+
+        # AC-005b: Role Separation
+        self._check_role_separation()
+
+        # AC-006: TECH_PLASMA_VAULT_ROLE(3) — only vault should hold it
+        self._check_tech_plasma_vault_role(am)
+
+        # AC-010: Role admin hierarchy
         self._check_role_hierarchy(am)
 
-        # AC-010: Function-role mappings on vault
+        # AC-008: Function-role mappings on vault
         self._check_function_roles(am)
 
-        # AC-015: Redemption delay
+        # AC-012: Redemption delay
         ok, delay = self.call(am, "REDEMPTION_DELAY_IN_SECONDS")
         if ok:
             days = delay / 86400
-            self.add("AC-015", "Max redemption delay constant", Status.PASS,
+            self.add("AC-012", "Max redemption delay constant", Status.PASS,
                      f"{delay}s ({days:.1f} days)")
         else:
-            self.add("AC-015", "Max redemption delay constant", Status.SKIP, None, "Call failed")
+            self.add("AC-012", "Max redemption delay constant", Status.SKIP, None, "Call failed")
 
-        # AC-016: Minimal execution delays for key roles
+        # AC-011: Minimal execution delays for key roles
         for role_id in [0, 1, 2, 100, 200, 300]:
             role_name = ROLES.get(role_id, f"Role({role_id})")
             ok, min_delay = self.call(am, "getMinimalExecutionDelayForRole", role_id)
@@ -54,28 +73,28 @@ class Phase2AccessControl(BaseValidator):
                 if role_id == 0 and min_delay == 0:
                     status = Status.WARN
                     detail = "ADMIN has zero delay — high risk"
-                self.add(f"AC-016-{role_id}", f"Min execution delay for {role_name}",
+                self.add(f"AC-011-{role_id}", f"Min execution delay for {role_name}",
                          status, f"{min_delay}s", detail)
             else:
-                self.add(f"AC-016-{role_id}", f"Min execution delay for {role_name}",
+                self.add(f"AC-011-{role_id}", f"Min execution delay for {role_name}",
                          Status.SKIP, None, "Call failed")
 
-        # AC-017: Target closed check (vault should not be closed)
+        # AC-013: Target closed check (vault should not be closed)
         ok, closed = self.call(am, "isTargetClosed", self.vault_address)
         if ok:
             if closed:
-                self.add("AC-017", "Vault target closed", Status.FAIL, "CLOSED",
+                self.add("AC-013", "Vault target closed", Status.FAIL, "CLOSED",
                          "Vault is closed in AccessManager — no functions callable")
             else:
-                self.add("AC-017", "Vault target closed", Status.PASS, "Open")
+                self.add("AC-013", "Vault target closed", Status.PASS, "Open")
         else:
-            self.add("AC-017", "Vault target closed", Status.SKIP, None, "Call failed")
+            self.add("AC-013", "Vault target closed", Status.SKIP, None, "Call failed")
 
         # AC-018: Target admin delay for vault
         ok, admin_delay = self.call(am, "getTargetAdminDelay", self.vault_address)
         if ok:
             self.add("AC-018", "Vault target admin delay", Status.INFO,
-                     f"{admin_delay}s", f"Admin delay for changing vault permissions")
+                     f"{admin_delay}s", "Admin delay for changing vault permissions")
         else:
             self.add("AC-018", "Vault target admin delay", Status.SKIP, None, "Call failed")
 
@@ -147,8 +166,9 @@ class Phase2AccessControl(BaseValidator):
                 role_holders_detailed[role_id] = verified_holders
                 role_holders_legacy[role_id] = legacy_holders
 
-                # Emit AC-002 checks for major roles
-                if role_id in [0, 1, 2, 100, 200, 300]:
+                # Emit checks for major roles using ROLE_TO_CHECK_ID
+                check_id = ROLE_TO_CHECK_ID.get(role_id)
+                if check_id:
                     if verified_holders:
                         holder_strs = []
                         for h in verified_holders:
@@ -161,13 +181,13 @@ class Phase2AccessControl(BaseValidator):
                         status = Status.PASS
                         if role_id == 0:
                             status = Status.INFO
-                        self.add(f"AC-002-{role_id}", f"{role_name} holders",
+                        self.add(check_id, f"{role_name} holders",
                                  status, "; ".join(holder_strs))
                     else:
                         status = Status.INFO
                         if role_id in [100]:
                             status = Status.WARN
-                        self.add(f"AC-002-{role_id}", f"{role_name} holders",
+                        self.add(check_id, f"{role_name} holders",
                                  status, "No holders found")
 
             self.ctx["role_holders_detailed"] = role_holders_detailed
@@ -175,7 +195,7 @@ class Phase2AccessControl(BaseValidator):
 
         except Exception as exc:
             print(f"  [access] Event-based discovery failed: {exc}, using fallback")
-            self.add("AC-002", "Role holder discovery", Status.WARN,
+            self.add("AC-051", "Role holder discovery", Status.WARN,
                      "Fallback mode", f"Event scan failed: {exc}")
             self._discover_role_holders_fallback(am)
 
@@ -210,23 +230,89 @@ class Phase2AccessControl(BaseValidator):
 
             role_holders[role_id] = holders
 
-            if role_id in [0, 1, 2, 100, 200, 300]:
+            check_id = ROLE_TO_CHECK_ID.get(role_id)
+            if check_id:
                 if holders:
                     holder_strs = [f"{self.fmt_addr(h[0])} (delay={h[1]}s)" for h in holders]
                     status = Status.PASS
                     if role_id == 0:
                         status = Status.INFO
-                    self.add(f"AC-002-{role_id}", f"{role_name} holders (known contracts)",
+                    self.add(check_id, f"{role_name} holders (known contracts)",
                              status, "; ".join(holder_strs))
                 else:
                     status = Status.INFO
                     if role_id in [100]:
                         status = Status.WARN
-                    self.add(f"AC-002-{role_id}", f"{role_name} holders (known contracts)",
+                    self.add(check_id, f"{role_name} holders (known contracts)",
                              status, "No holders found among known contracts",
                              "Note: EOA holders not discoverable without events")
 
         self.ctx["role_holders"] = role_holders
+
+    def _check_no_admin_holders(self):
+        """AC-002: ADMIN_ROLE should have no holders after initialization."""
+        role_holders = self.ctx.get("role_holders", {})
+        admin_holders = role_holders.get(0, [])
+        if not admin_holders:
+            self.add("AC-002", "No unauthorized ADMIN_ROLE holders", Status.PASS,
+                     "ADMIN_ROLE has no holders")
+        else:
+            addrs = [self.fmt_addr(h[0]) if isinstance(h, tuple) else self.fmt_addr(h.address)
+                     for h in admin_holders]
+            self.add("AC-002", "No unauthorized ADMIN_ROLE holders", Status.FAIL,
+                     f"{len(admin_holders)} holder(s): {', '.join(addrs)}",
+                     "ADMIN_ROLE should be revoked after initialization")
+
+    def _check_role_separation(self):
+        """AC-005b: No address should hold multiple critical roles."""
+        role_holders = self.ctx.get("role_holders", {})
+        critical_roles = [0, 1, 2, 100, 200]
+        addr_roles = {}
+        for role_id in critical_roles:
+            holders = role_holders.get(role_id, [])
+            for h in holders:
+                addr = h[0].lower() if isinstance(h, tuple) else h.address.lower()
+                addr_roles.setdefault(addr, []).append(role_id)
+
+        conflicts = {a: roles for a, roles in addr_roles.items() if len(roles) > 1}
+        if not conflicts:
+            self.add("AC-005b", "Role separation", Status.PASS,
+                     "No address holds multiple critical roles")
+        else:
+            conflict_strs = []
+            for addr, roles in conflicts.items():
+                role_names = [ROLES.get(r, str(r)) for r in roles]
+                conflict_strs.append(f"{self.fmt_addr(addr)}: {', '.join(role_names)}")
+            self.add("AC-005b", "Role separation", Status.WARN,
+                     f"{len(conflicts)} conflict(s)",
+                     "; ".join(conflict_strs))
+
+    def _check_tech_plasma_vault_role(self, am):
+        """AC-006: TECH_PLASMA_VAULT_ROLE(3) should only be held by the vault."""
+        role_holders = self.ctx.get("role_holders", {})
+        holders = role_holders.get(3, [])
+        vault_lower = self.vault_address.lower()
+
+        non_vault_holders = []
+        vault_has_role = False
+        for h in holders:
+            addr = h[0].lower() if isinstance(h, tuple) else h.address.lower()
+            if addr == vault_lower:
+                vault_has_role = True
+            else:
+                non_vault_holders.append(addr)
+
+        if vault_has_role and not non_vault_holders:
+            self.add("AC-006", "TECH_PLASMA_VAULT_ROLE(3)", Status.PASS,
+                     "Only vault holds role 3")
+        elif not vault_has_role and not non_vault_holders:
+            self.add("AC-006", "TECH_PLASMA_VAULT_ROLE(3)", Status.WARN,
+                     "No holders", "Neither vault nor any other address holds role 3")
+        else:
+            addrs = [self.fmt_addr(a) for a in non_vault_holders]
+            self.add("AC-006", "TECH_PLASMA_VAULT_ROLE(3)", Status.FAIL,
+                     f"Non-vault holders: {', '.join(addrs)}",
+                     "Only the vault should hold TECH_PLASMA_VAULT_ROLE")
 
     def _check_role_hierarchy(self, am):
         """Check role admin and guardian assignments."""
@@ -270,7 +356,7 @@ class Phase2AccessControl(BaseValidator):
                     guardian_name = ROLES.get(guardian_role, f"Role({guardian_role})")
                     guardian_info = f", guardian={guardian_name}({guardian_role})"
 
-                self.add(f"AC-005-{role_id}", f"{role_name} admin hierarchy",
+                self.add(f"AC-010-{role_id}", f"{role_name} admin hierarchy",
                          status, f"admin={admin_name}({admin_role}){guardian_info}", detail)
 
     def _check_function_roles(self, am):
@@ -284,7 +370,7 @@ class Phase2AccessControl(BaseValidator):
                 mappings.append((fn_sig, role_id, role_name))
 
         if not mappings:
-            self.add("AC-010", "Function-role mappings", Status.SKIP, None,
+            self.add("AC-008", "Function-role mappings", Status.SKIP, None,
                      "Could not read function role mappings")
             return
 
@@ -294,7 +380,7 @@ class Phase2AccessControl(BaseValidator):
 
         for role_name, fns in sorted(by_role.items()):
             fn_list = ", ".join(f.split("(")[0] for f in fns)
-            self.add("AC-010", f"Functions requiring {role_name}",
+            self.add("AC-008", f"Functions requiring {role_name}",
                      Status.INFO, fn_list)
 
         for fn_sig, role_id, role_name in mappings:
@@ -304,11 +390,11 @@ class Phase2AccessControl(BaseValidator):
 
             fn_short = fn_sig.split("(")[0]
             if role_id in expected_roles:
-                self.add(f"AC-010-{fn_short}", f"{fn_short} role",
+                self.add(f"AC-008-{fn_short}", f"{fn_short} role",
                          Status.PASS, role_name,
                          f"Matches expected {ROLES.get(expected_roles[0], expected_roles[0])}")
             else:
                 expected_names = [ROLES.get(r, str(r)) for r in expected_roles]
-                self.add(f"AC-010-{fn_short}", f"{fn_short} role",
+                self.add(f"AC-008-{fn_short}", f"{fn_short} role",
                          Status.WARN, role_name,
                          f"Expected {expected_names}, got {role_name}")

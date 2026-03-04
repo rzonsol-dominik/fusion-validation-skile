@@ -35,7 +35,7 @@ ROLES = {
 ROLE_IDS = {v: k for k, v in ROLES.items()}
 
 # Roles that should be inspected for holders
-INSPECTABLE_ROLES = [0, 1, 2, 100, 200, 300, 301, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200]
+INSPECTABLE_ROLES = [0, 1, 2, 3, 100, 200, 300, 301, 400, 500, 600, 601, 700, 800, 900, 1000, 1100, 1200]
 
 # Technical roles (should only be held by contracts, not EOAs)
 TECH_ROLES = [3, 4, 5, 6, 7, 400, 500, 601]

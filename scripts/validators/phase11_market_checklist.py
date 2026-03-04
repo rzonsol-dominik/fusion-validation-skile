@@ -7,6 +7,7 @@ lending substrate checks, dependency advisories, staking origin links, etc.
 from __future__ import annotations
 
 from .base import BaseValidator, Status
+from .phase3_markets import _decode_substrate
 from constants import (
     MARKETS,
     MARKET_TYPE_BY_ID,
@@ -75,15 +76,39 @@ class Phase11MarketChecklist(BaseValidator):
     # ------------------------------------------------------------------
     # Lending checks
     # ------------------------------------------------------------------
+    # Markets where substrates reference protocol vaults/pools, not the underlying token.
+    # LM-05 should be INFO (not WARN) when asset is absent from these markets.
+    _INDIRECT_SUBSTRATE_MARKETS = {
+        3,   # GEARBOX_POOL_V3 — substrates are dToken pool addresses
+        5,   # FLUID_INSTADAPP_POOL — substrates are Fluid pool addresses
+        11,  # EULER_V2 — substrates are e-vault addresses
+        14,  # MORPHO — substrates are Morpho market IDs
+        15,  # SPARK — substrates are Spark pool addresses
+        21,  # MOONWELL — substrates are mToken addresses
+        29,  # LIQUITY_V2 — substrates are trove addresses
+        35,  # SILO_V2 — substrates are silo vault addresses
+    }
+
     def _check_lending(self, mid: int, mname: str, asset: str, iw_fuses: list):
         substrates = self.ctx.get("market_substrates", {}).get(mid, [])
         # LM-05: vault underlying in substrates
+        # Use market-aware decoding so non-standard encodings (Euler, Enso, etc.) are handled
         if substrates and asset:
-            asset_padded = "0x" + asset.replace("0x", "").lower().zfill(64)
-            found = any(s.hex().lower() == asset_padded.replace("0x", "") for s in substrates)
+            asset_lower = asset.replace("0x", "").lower()
+            found = False
+            for s in substrates:
+                hex_s = s.hex() if isinstance(s, bytes) else s
+                addr, _ = _decode_substrate(hex_s, mid)
+                if addr and addr.replace("0x", "").lower() == asset_lower:
+                    found = True
+                    break
             if found:
                 self.add(f"LM-05-{mid}", f"Lending {mname}: underlying in substrates",
                          Status.PASS)
+            elif mid in self._INDIRECT_SUBSTRATE_MARKETS:
+                self.add(f"LM-05-{mid}", f"Lending {mname}: underlying in substrates",
+                         Status.INFO,
+                         detail="Substrates reference protocol vaults/pools, not underlying token directly")
             else:
                 self.add(f"LM-05-{mid}", f"Lending {mname}: underlying in substrates",
                          Status.WARN,
