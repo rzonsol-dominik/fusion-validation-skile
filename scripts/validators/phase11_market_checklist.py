@@ -6,9 +6,12 @@ lending substrate checks, dependency advisories, staking origin links, etc.
 
 from __future__ import annotations
 
+from abis import ERC4626_ABI
 from .base import BaseValidator, Status
 from .phase3_markets import _decode_substrate
 from constants import (
+    ERC4626_VAULT_MARKET_START,
+    ERC4626_VAULT_MARKET_END,
     MARKETS,
     MARKET_TYPE_BY_ID,
     MARKET_TYPES,
@@ -74,6 +77,9 @@ class Phase11MarketChecklist(BaseValidator):
                          detail="Flash loan presence noted; see Phase 10 for callback handler checks")
             elif mtype == "SPECIAL":
                 self._check_special(mid, mname, rcm)
+
+        # MC-020: Substrate vault underlying tracking
+        self._check_substrate_underlying_tracking(active_markets)
 
         return self.results
 
@@ -206,3 +212,73 @@ class Phase11MarketChecklist(BaseValidator):
                          detail="Reward market active but no RewardsClaimManager configured")
         else:
             self.add(f"SP-{mid}", f"Special market {mname}", Status.INFO)
+
+    # ------------------------------------------------------------------
+    # MC-020: Substrate vault underlying tracking
+    # ------------------------------------------------------------------
+    _VAULT_SUBSTRATE_MARKETS = {11}  # EULER_V2
+
+    def _check_substrate_underlying_tracking(self, active_markets: list[int]):
+        """MC-020: Check that ERC4626/Euler vault substrates have their underlying tracked."""
+        market_substrates = self.ctx.get("market_substrates", {})
+
+        # Build set of all substrate addresses across all active markets
+        # (for checking if underlying is tracked somewhere)
+        all_substrate_addrs: set[str] = set()
+        for mid in active_markets:
+            for s in market_substrates.get(mid, []):
+                hex_s = s.hex() if isinstance(s, bytes) else s
+                addr, _ = _decode_substrate(hex_s, mid)
+                if addr:
+                    all_substrate_addrs.add(addr.lower())
+
+        # Also include the vault's own underlying asset
+        asset = self.ctx.get("asset", "")
+        if asset:
+            all_substrate_addrs.add(asset.lower())
+
+        # Determine which markets contain vault-type substrates
+        vault_markets = set()
+        for mid in active_markets:
+            if mid in self._VAULT_SUBSTRATE_MARKETS:
+                vault_markets.add(mid)
+            elif ERC4626_VAULT_MARKET_START <= mid <= ERC4626_VAULT_MARKET_END:
+                vault_markets.add(mid)
+
+        if not vault_markets:
+            return  # No vault-type substrates to check
+
+        checked = 0
+        for mid in sorted(vault_markets):
+            substrates = market_substrates.get(mid, [])
+            mname = MARKETS.get(mid, f"MARKET_{mid}")
+            for s in substrates:
+                hex_s = s.hex() if isinstance(s, bytes) else s
+                addr, _ = _decode_substrate(hex_s, mid)
+                if not addr or self.is_zero(addr):
+                    continue
+
+                checked += 1
+                # Call asset() on the substrate to get underlying
+                sub_contract = self.contract(addr, ERC4626_ABI)
+                ok, underlying = self.call(sub_contract, "asset")
+                if not ok:
+                    self.add(f"MC-020-{mid}-{self.fmt_addr(addr)}",
+                             f"Substrate {self.fmt_addr(addr)} underlying ({mname})",
+                             Status.INFO, detail="asset() call failed — may not be ERC4626")
+                    continue
+
+                underlying_lower = underlying.lower()
+                if underlying_lower in all_substrate_addrs:
+                    self.add(f"MC-020-{mid}-{self.fmt_addr(addr)}",
+                             f"Substrate {self.fmt_addr(addr)} underlying tracked ({mname})",
+                             Status.PASS,
+                             value=self.fmt_addr(underlying))
+                else:
+                    underlying_name = self.resolve_name(underlying)
+                    label = f"{underlying_name} ({self.fmt_addr(underlying)})" if underlying_name else self.fmt_addr(underlying)
+                    self.add(f"MC-020-{mid}-{self.fmt_addr(addr)}",
+                             f"Substrate {self.fmt_addr(addr)} underlying NOT tracked ({mname})",
+                             Status.WARN,
+                             value=label,
+                             detail="Underlying asset not found as substrate in any active market")

@@ -45,6 +45,9 @@ class Phase2AccessControl(BaseValidator):
         # AC-005b: Role Separation
         self._check_role_separation()
 
+        # AC-005c: Operational role concentration on EOA
+        self._check_operational_role_concentration()
+
         # AC-006: TECH_PLASMA_VAULT_ROLE(3) — only vault should hold it
         self._check_tech_plasma_vault_role(am)
 
@@ -288,6 +291,34 @@ class Phase2AccessControl(BaseValidator):
             self.add("AC-005b", "Role separation", Status.WARN,
                      f"{len(conflicts)} conflict(s)",
                      "; ".join(conflict_strs))
+
+    def _check_operational_role_concentration(self):
+        """AC-005c: Flag EOAs holding 3+ operational roles."""
+        role_holders = self.ctx.get("role_holders", {})
+        operational_roles = [300, 301, 600, 700, 800, 900, 1000, 1100, 1200]
+        addr_roles = {}
+        for role_id in operational_roles:
+            holders = role_holders.get(role_id, [])
+            for h in holders:
+                addr = h[0].lower() if isinstance(h, tuple) else h.address.lower()
+                addr_roles.setdefault(addr, []).append(role_id)
+
+        concentrated = {a: roles for a, roles in addr_roles.items() if len(roles) >= 3}
+        if not concentrated:
+            self.add("AC-005c", "Operational role concentration", Status.PASS,
+                     "No address holds 3+ operational roles")
+        else:
+            for addr, roles in concentrated.items():
+                role_names = [ROLES.get(r, str(r)) for r in roles]
+                is_eoa = not self.is_contract(addr)
+                if is_eoa:
+                    self.add("AC-005c", "Operational role concentration", Status.WARN,
+                             f"EOA {self.fmt_addr(addr)} holds {len(roles)} operational roles",
+                             ", ".join(role_names))
+                else:
+                    self.add("AC-005c", "Operational role concentration", Status.INFO,
+                             f"Contract {self.fmt_addr(addr)} holds {len(roles)} operational roles",
+                             ", ".join(role_names))
 
     def _check_tech_plasma_vault_role(self, am):
         """AC-006: TECH_PLASMA_VAULT_ROLE(3) should only be held by the vault."""

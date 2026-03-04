@@ -19,7 +19,7 @@ class Phase10Hooks(BaseValidator):
         if verified is True:
             self.add("HC-001", "Vault verified on explorer", Status.PASS, "Verified")
         elif verified is False:
-            self.add("HC-001", "Vault verified on explorer", Status.WARN,
+            self.add("HC-001", "Vault verified on explorer", Status.FAIL,
                      "Not verified", "Source code not verified on block explorer")
         else:
             self.add("HC-001", "Vault verified on explorer", Status.SKIP,
@@ -32,7 +32,7 @@ class Phase10Hooks(BaseValidator):
             if verified is True:
                 self.add("HC-002", "AccessManager verified on explorer", Status.PASS, "Verified")
             elif verified is False:
-                self.add("HC-002", "AccessManager verified on explorer", Status.WARN,
+                self.add("HC-002", "AccessManager verified on explorer", Status.FAIL,
                          "Not verified")
             else:
                 self.add("HC-002", "AccessManager verified on explorer", Status.SKIP,
@@ -45,7 +45,7 @@ class Phase10Hooks(BaseValidator):
             if verified is True:
                 self.add("HC-003", "Implementation verified on explorer", Status.PASS, "Verified")
             elif verified is False:
-                self.add("HC-003", "Implementation verified on explorer", Status.WARN,
+                self.add("HC-003", "Implementation verified on explorer", Status.FAIL,
                          "Not verified")
             else:
                 self.add("HC-003", "Implementation verified on explorer", Status.SKIP,
@@ -68,7 +68,7 @@ class Phase10Hooks(BaseValidator):
                     skipped += 1
 
             if unverified:
-                self.add("HC-005", "Fuse verification on explorer", Status.WARN,
+                self.add("HC-005", "Fuse verification on explorer", Status.FAIL,
                          f"{verified_count} verified, {len(unverified)} unverified",
                          "Unverified: " + ", ".join(self.fmt_addr(f) for f in unverified[:5]))
             elif skipped == len(all_fuses[:20]):
@@ -112,7 +112,7 @@ class Phase10Hooks(BaseValidator):
             if verified is True:
                 self.add("HC-015", "Oracle verified on explorer", Status.PASS, "Verified")
             elif verified is False:
-                self.add("HC-015", "Oracle verified on explorer", Status.WARN, "Not verified")
+                self.add("HC-015", "Oracle verified on explorer", Status.FAIL, "Not verified")
             else:
                 self.add("HC-015", "Oracle verified on explorer", Status.SKIP,
                          None, "API key not set or call failed")
