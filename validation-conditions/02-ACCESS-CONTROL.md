@@ -213,7 +213,7 @@ Verify the role system, permissions, and hierarchy in IporFusionAccessManager.
 - **Condition**: Roles with execution delay have minimum delays set
 - **How to check**: Check delay per role in AccessManager
 - **Expected result**: Consistent with governance policy (e.g., ATOMIST 24h delay)
-- **Notes**: Delays protect against flash-loan governance attacks
+- **Notes**: Delays protect against flash-loan governance attacks. For ADMIN_ROLE (0), zero delay is informational (not a warning) when no address holds the role — an empty ADMIN with zero delay poses no risk.
 
 ### AC-012: Redemption Delay
 - **Condition**: REDEMPTION_DELAY_IN_SECONDS is set reasonably

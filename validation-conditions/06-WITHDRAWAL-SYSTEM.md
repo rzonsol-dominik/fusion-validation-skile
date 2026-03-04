@@ -11,7 +11,7 @@ Verify the withdrawal system: instant withdrawal fuses, scheduled withdrawals, W
 - **Condition**: Instant withdrawal fuses are configured for every market from which the vault may need to withdraw
 - **How to check**: `PlasmaVaultGovernance.getInstantWithdrawalFuses()`
 - **Expected result**: Non-empty list of fuses (if vault has assets in markets)
-- **Notes**: WITHOUT instant withdrawal fuses users CANNOT withdraw assets deposited in protocols
+- **Notes**: WITHOUT instant withdrawal fuses users CANNOT withdraw assets deposited in protocols. If fuses list is empty, see WS-005 for per-market coverage analysis — many vaults operate without instant withdrawal fuses when using scheduled withdrawals via WithdrawManager.
 
 ### WS-002: Instant Withdrawal Fuses Order
 - **Condition**: Fuse order is optimal (cheapest/most liquid first)

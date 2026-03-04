@@ -43,7 +43,7 @@ totalAssets() = vault.balance (ERC20 underlying in vault)
   assert |calculated - vault.totalAssets()| <= rounding_tolerance
   ```
 - **Expected result**: Match (tolerance +-1 for rounding per market)
-- **Notes**: Mismatch = something is wrong with balance tracking
+- **Notes**: Mismatch = something is wrong with balance tracking. For leveraged/looping vaults (where totalAssets >> computed sum), a large discrepancy is expected because balance fuses report net positions, not gross collateral — this is informational, not a failure.
 
 ### BT-003: Per-Market Balance vs Protocol State
 - **Condition**: Each totalAssetsInMarket() reflects the ACTUAL state on the protocol
@@ -62,8 +62,8 @@ totalAssets() = vault.balance (ERC20 underlying in vault)
 ### BT-005: Share Price Reasonability
 - **Condition**: Share price (convertToAssets(1e(decimals))) is reasonable
 - **How to check**: `vault.convertToAssets(10 ** vault.decimals())`
-- **Expected result**: Value close to 1 underlying token (with profit accumulation over time)
-- **Notes**: Share price radically != 1 (e.g., 0 or 1e30) indicates a problem
+- **Expected result**: Value close to 1 underlying token (with profit accumulation over time). For USD-pegged assets, expected range is [0.5, 2.0]. For non-USD assets (ETH, BTC, PAXG, EURC — detected via oracle price >$10 or <$0.10), use wider range [0.01, 100.0].
+- **Notes**: Share price radically != 1 (e.g., 0 or 1e30) indicates a problem. Non-USD assets naturally have a different price scale, so the acceptable range is widened accordingly.
 
 ---
 

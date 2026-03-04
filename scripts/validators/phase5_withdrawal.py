@@ -13,7 +13,7 @@ class Phase5Withdrawal(BaseValidator):
     def run(self):
         vault = self.contract(self.vault_address, PLASMA_VAULT_ABI)
 
-        # WS-001: Instant withdrawal fuses
+        # WS-001: Instant withdrawal fuses (informational — WS-005 checks actual coverage)
         iw_fuses = self.ctx.get("instant_withdrawal_fuses", [])
         if iw_fuses:
             self.add("WS-001", "Instant withdrawal fuses configured", Status.PASS,
@@ -26,8 +26,8 @@ class Phase5Withdrawal(BaseValidator):
                 self.add("WS-001", "Instant withdrawal fuses configured", Status.PASS,
                          f"{len(iw_fuses)} fuse(s)")
             else:
-                self.add("WS-001", "Instant withdrawal fuses configured", Status.WARN,
-                         "None", "No instant withdrawal fuses — deposits may be irreversible without WithdrawManager")
+                self.add("WS-001", "Instant withdrawal fuses configured", Status.INFO,
+                         "None", "No instant withdrawal fuses — see WS-005 for coverage check")
 
         # WS-004: IFuseInstantWithdraw interface check
         # Verify each IW fuse bytecode contains the instantWithdraw(bytes32[]) selector

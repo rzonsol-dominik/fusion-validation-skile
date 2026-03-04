@@ -47,10 +47,14 @@ Verify inter-market interactions: dependency graph, market limits, cross-market 
 - **Notes**: Missing dependency = phantom balance (vault thinks it has more/less than reality)
 
 ### MI-003: No Circular Dependencies
-- **Condition**: Dependency graph has no cycles
-- **How to check**: DFS graph traversal - check for absence of cycles
+- **Condition**: Dependency graph has no multi-hop cycles (3+ markets)
+- **How to check**: DFS graph traversal - classify cycles by type
 - **Expected result**: DAG (directed acyclic graph)
-- **Notes**: Cycle = potential infinite loop or incorrect calculations
+- **Severity by cycle type**:
+  - Self-referencing `[X, X]` → INFO (normal for some market types)
+  - Mutual dependencies `[X, Y, X]` → WARN (common in lending pairs e.g. AAVE↔MORPHO)
+  - Multi-hop cycles (3+ markets) → FAIL (true circular dependency)
+- **Notes**: Mutual dependencies between lending markets are a common and intentional configuration pattern
 
 ### MI-004: Market Limits - Active Status
 - **Condition**: Market limits are active/inactive as intended

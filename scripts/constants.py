@@ -225,3 +225,21 @@ USD_QUOTE_CURRENCY = "0x0000000000000000000000000000000000000348"
 
 # REDEMPTION_DELAY_IN_SECONDS max (7 days)
 MAX_REDEMPTION_DELAY = 7 * 24 * 3600
+
+# ---------------------------------------------------------------------------
+# Wrapped-asset equivalences (Ethereum mainnet)
+# Maps underlying token → set of accepted wrapper addresses.
+# Used by LM-05 to accept wstETH substrates when vault underlying is stETH, etc.
+# ---------------------------------------------------------------------------
+WRAPPED_ASSET_EQUIVALENTS = {
+    # stETH → wstETH, WETH (AAVE accepts wstETH for stETH vaults)
+    "0xae7ab96520de3a18e5e111b5eaab095312d7fe84": {
+        "0x7f39c581f595b53c5cb19bd0b3f8da6c935e2ca0",  # wstETH
+        "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",  # WETH
+    },
+    # WETH → wstETH, stETH
+    "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": {
+        "0x7f39c581f595b53c5cb19bd0b3f8da6c935e2ca0",  # wstETH
+        "0xae7ab96520de3a18e5e111b5eaab095312d7fe84",  # stETH
+    },
+}

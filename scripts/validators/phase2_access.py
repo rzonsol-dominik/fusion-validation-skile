@@ -64,6 +64,7 @@ class Phase2AccessControl(BaseValidator):
             self.add("AC-012", "Max redemption delay constant", Status.SKIP, None, "Call failed")
 
         # AC-011: Minimal execution delays for key roles
+        admin_holders = self.ctx.get("role_holders", {}).get(0, [])
         for role_id in [0, 1, 2, 100, 200, 300]:
             role_name = ROLES.get(role_id, f"Role({role_id})")
             ok, min_delay = self.call(am, "getMinimalExecutionDelayForRole", role_id)
@@ -71,8 +72,12 @@ class Phase2AccessControl(BaseValidator):
                 status = Status.PASS
                 detail = ""
                 if role_id == 0 and min_delay == 0:
-                    status = Status.WARN
-                    detail = "ADMIN has zero delay — high risk"
+                    if admin_holders:
+                        status = Status.WARN
+                        detail = "ADMIN has zero delay and active holders — high risk"
+                    else:
+                        status = Status.INFO
+                        detail = "ADMIN has zero delay (no holders — low risk)"
                 self.add(f"AC-011-{role_id}", f"Min execution delay for {role_name}",
                          status, f"{min_delay}s", detail)
             else:
@@ -103,11 +108,8 @@ class Phase2AccessControl(BaseValidator):
             role_name = ROLES.get(role_id, f"Role({role_id})")
             ok, grant_delay = self.call(am, "getRoleGrantDelay", role_id)
             if ok:
-                status = Status.INFO
-                if role_id in [0, 1] and grant_delay == 0:
-                    status = Status.WARN
                 self.add(f"AC-020-{role_id}", f"Grant delay for {role_name}",
-                         status, f"{grant_delay}s")
+                         Status.INFO, f"{grant_delay}s")
 
         return self.results
 

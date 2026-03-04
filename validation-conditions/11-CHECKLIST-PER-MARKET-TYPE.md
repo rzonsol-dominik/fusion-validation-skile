@@ -13,7 +13,7 @@ Use the appropriate checklist when adding a new market.
 - [ ] **LM-02**: Supply fuse deployed with correct parameters (pool address, market ID)
 - [ ] **LM-03**: Balance fuse deployed with the same market ID
 - [ ] **LM-04**: Substrates contain addresses of tokens the vault will supply
-- [ ] **LM-05**: Vault's underlying token is one of the substrate assets
+- [ ] **LM-05**: Vault's underlying token (or a wrapped equivalent, e.g. stETH→wstETH) is one of the substrate assets. For indirect-substrate markets (Morpho, Euler V2, Gearbox, Fluid, Spark, Moonwell, Liquity V2, Silo V2, AAVE V4), substrates reference protocol pools/vaults, not the underlying token directly — this is expected and informational only.
 - [ ] **LM-06**: Supply fuse registered in vault (`addFuses()`)
 - [ ] **LM-07**: Balance fuse assigned to market (`addBalanceFuse()`)
 - [ ] **LM-08**: Substrates granted (`grantMarketSubstrates()`)
@@ -175,7 +175,7 @@ Use the appropriate checklist when adding a new market.
 ### ERC20_VAULT_BALANCE (Balance Only):
 - [ ] **SP-01**: Erc20BalanceFuse assigned as balance fuse
 - [ ] **SP-02**: Market ID = 7 (ERC20_VAULT_BALANCE from IporFusionMarkets.sol)
-- [ ] **SP-03**: This market MUST ALWAYS exist in the vault - tracks native underlying token balance
+- [ ] **SP-03**: This market MUST ALWAYS exist in configured vaults — tracks native underlying token balance. For unconfigured vaults (zero active markets), absence is a WARN, not FAIL.
 
 ### ZERO_BALANCE_MARKET:
 - [ ] **SP-10**: ZeroBalanceFuse assigned (if used)

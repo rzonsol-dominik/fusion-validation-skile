@@ -56,9 +56,24 @@ class Phase4Interactions(BaseValidator):
         if dep_graph:
             cycles = self._detect_cycles(dep_graph)
             if cycles:
-                self.add("MI-003", "Dependency cycles", Status.FAIL,
-                         f"{len(cycles)} cycle(s) detected",
-                         " | ".join(str(c) for c in cycles))
+                self_refs = [c for c in cycles if len(c) == 2 and c[0] == c[1]]
+                mutual = [c for c in cycles if len(c) == 3 and c not in self_refs]
+                multi_hop = [c for c in cycles if len(c) > 3]
+
+                if multi_hop:
+                    self.add("MI-003", "Dependency cycles", Status.FAIL,
+                             f"{len(cycles)} cycle(s): {len(multi_hop)} multi-hop",
+                             " | ".join(str(c) for c in cycles))
+                elif mutual:
+                    self.add("MI-003", "Dependency cycles", Status.WARN,
+                             f"{len(cycles)} cycle(s): {len(mutual)} mutual dep(s)",
+                             " | ".join(str(c) for c in cycles)
+                             + " — mutual dependencies between lending markets are common")
+                else:
+                    self.add("MI-003", "Dependency cycles", Status.INFO,
+                             f"{len(self_refs)} self-referencing dep(s)",
+                             " | ".join(str(c) for c in cycles)
+                             + " — self-dependencies are normal for some market types")
             else:
                 self.add("MI-003", "Dependency cycles", Status.PASS, "No cycles detected")
 

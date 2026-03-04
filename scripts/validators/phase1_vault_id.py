@@ -254,13 +254,14 @@ class Phase1VaultIdentity(BaseValidator):
         else:
             self.add("VC-053", "Registered fuses", Status.SKIP, None, "Call failed")
 
-        # VC-054: Instant withdrawal fuses
+        # VC-054: Instant withdrawal fuses (informational — WS-005 checks coverage)
         ok, iw_fuses = self.call(vault, "getInstantWithdrawalFuses")
         if ok:
             self.ctx["instant_withdrawal_fuses"] = iw_fuses
-            self.add("VC-054", "Instant withdrawal fuses", Status.PASS if len(iw_fuses) > 0 else Status.WARN,
+            self.add("VC-054", "Instant withdrawal fuses",
+                     Status.PASS if len(iw_fuses) > 0 else Status.INFO,
                      f"{len(iw_fuses)} fuse(s)",
-                     ", ".join(self.fmt_addr_named(f) for f in iw_fuses[:10]))
+                     ", ".join(self.fmt_addr_named(f) for f in iw_fuses[:10]) if iw_fuses else "None configured")
         else:
             self.add("VC-054", "Instant withdrawal fuses", Status.SKIP, None, "Call failed")
 

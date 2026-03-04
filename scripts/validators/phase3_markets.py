@@ -137,14 +137,14 @@ class Phase3Markets(BaseValidator):
             self.add("MC-012", "Active markets discovered", Status.WARN,
                      "0 markets", "No active markets found — vault may be unconfigured")
 
-        # MC-007: ERC20_VAULT_BALANCE market must exist
+        # MC-007: ERC20_VAULT_BALANCE market presence (informational — SP-03 in Phase 11 is authoritative)
         if 7 in active_markets:
             self.add("MC-007", "ERC20_VAULT_BALANCE market", Status.PASS,
                      "Market 7 is active")
         else:
-            self.add("MC-007", "ERC20_VAULT_BALANCE market", Status.WARN,
+            self.add("MC-007", "ERC20_VAULT_BALANCE market", Status.INFO,
                      "Market 7 not found",
-                     "ERC20_VAULT_BALANCE (id=7) should be present for proper vault balance tracking")
+                     "See SP-03 in Phase 11 for ERC20_VAULT_BALANCE requirement")
 
         # MC-001: Balance fuse check per market
         # Balance fuses are stored separately from action fuses (getFuses()).

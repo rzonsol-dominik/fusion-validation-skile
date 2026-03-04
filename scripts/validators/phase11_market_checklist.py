@@ -13,6 +13,7 @@ from constants import (
     MARKET_TYPE_BY_ID,
     MARKET_TYPES,
     STAKING_ORIGIN,
+    WRAPPED_ASSET_EQUIVALENTS,
 )
 
 
@@ -30,9 +31,12 @@ class Phase11MarketChecklist(BaseValidator):
         # --- SP-03: ERC20_VAULT_BALANCE must exist ---
         if 7 in active_markets:
             self.add("SP-03", "ERC20_VAULT_BALANCE market present", Status.PASS)
+        elif not active_markets:
+            self.add("SP-03", "ERC20_VAULT_BALANCE market present", Status.WARN,
+                     detail="Vault has no active markets (unconfigured) — market 7 absent")
         else:
             self.add("SP-03", "ERC20_VAULT_BALANCE market present", Status.FAIL,
-                     detail="Market 7 (ERC20_VAULT_BALANCE) MUST exist in every vault")
+                     detail="Market 7 (ERC20_VAULT_BALANCE) MUST exist in every configured vault")
 
         # --- MTC: classify each market ---
         type_counts: dict[str, int] = {t: 0 for t in MARKET_TYPES}
@@ -87,6 +91,7 @@ class Phase11MarketChecklist(BaseValidator):
         21,  # MOONWELL — substrates are mToken addresses
         29,  # LIQUITY_V2 — substrates are trove addresses
         35,  # SILO_V2 — substrates are silo vault addresses
+        45,  # AAVE_V4 — substrates use type-flag encoding (spoke/asset addresses)
     }
 
     def _check_lending(self, mid: int, mname: str, asset: str, iw_fuses: list):
@@ -95,16 +100,33 @@ class Phase11MarketChecklist(BaseValidator):
         # Use market-aware decoding so non-standard encodings (Euler, Enso, etc.) are handled
         if substrates and asset:
             asset_lower = asset.replace("0x", "").lower()
+            # Build set of acceptable addresses: underlying + any wrapped equivalents
+            acceptable = {asset_lower}
+            # Look up equivalents using full 0x-prefixed lowercase address
+            asset_full = "0x" + asset_lower
+            equivalents = WRAPPED_ASSET_EQUIVALENTS.get(asset_full, set())
+            for eq in equivalents:
+                acceptable.add(eq.replace("0x", "").lower())
+
             found = False
+            found_equivalent = False
             for s in substrates:
                 hex_s = s.hex() if isinstance(s, bytes) else s
                 addr, _ = _decode_substrate(hex_s, mid)
-                if addr and addr.replace("0x", "").lower() == asset_lower:
-                    found = True
-                    break
+                if addr:
+                    addr_clean = addr.replace("0x", "").lower()
+                    if addr_clean == asset_lower:
+                        found = True
+                        break
+                    elif addr_clean in acceptable:
+                        found_equivalent = True
             if found:
                 self.add(f"LM-05-{mid}", f"Lending {mname}: underlying in substrates",
                          Status.PASS)
+            elif found_equivalent:
+                self.add(f"LM-05-{mid}", f"Lending {mname}: underlying in substrates",
+                         Status.PASS,
+                         detail="Wrapped equivalent of underlying token found in substrates")
             elif mid in self._INDIRECT_SUBSTRATE_MARKETS:
                 self.add(f"LM-05-{mid}", f"Lending {mname}: underlying in substrates",
                          Status.INFO,
