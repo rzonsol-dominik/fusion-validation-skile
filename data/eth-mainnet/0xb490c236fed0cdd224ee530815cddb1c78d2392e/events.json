@@ -1,6 +1,6 @@
 {
   "creation_block": 24548279,
-  "last_scanned_block": 24583015,
+  "last_scanned_block": 24583173,
   "events": [
     {
       "event": "RoleGranted",

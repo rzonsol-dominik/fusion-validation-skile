@@ -91,6 +91,32 @@ MARKETS = {
     46: "NAPIER",
 }
 
+# ---------------------------------------------------------------------------
+# Market type classification
+# ---------------------------------------------------------------------------
+MARKET_TYPES: dict[str, set[int]] = {
+    "LENDING": {1, 2, 3, 5, 11, 13, 14, 15, 20, 21, 26, 29, 35, 45},
+    "DEX_SWAP": {9, 10, 12, 42, 43, 38},
+    "LP_POSITION": {8, 16, 18, 30, 31, 32, 33, 36},
+    "STAKING": {4, 6, 17, 25, 28, 34},
+    "YIELD": {23, 37, 46},
+    "FLASH_LOAN": {19},
+    "SPECIAL": {7, 22, 24, 27, 39, 40, 41},
+}
+
+# Reverse lookup: market_id → type name
+MARKET_TYPE_BY_ID: dict[int, str] = {
+    mid: tname for tname, mids in MARKET_TYPES.items() for mid in mids
+}
+
+# Staking → origin market mapping (staking market depends on this origin market)
+STAKING_ORIGIN: dict[int, int] = {
+    4: 3,    # GEARBOX_FARM_DTOKEN_V3 → GEARBOX_POOL_V3
+    6: 5,    # FLUID_INSTADAPP_STAKING → FLUID_INSTADAPP_POOL
+    17: 16,  # CURVE_LP_GAUGE → CURVE_POOL
+    25: 16,  # CURVE_GAUGE_ERC4626 → CURVE_POOL
+}
+
 # ERC4626 vault markets range
 ERC4626_VAULT_MARKET_START = 100_001
 ERC4626_VAULT_MARKET_END = 100_020

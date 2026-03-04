@@ -5,6 +5,99 @@ from constants import ERC4626_VAULT_MARKET_END, ERC4626_VAULT_MARKET_START, MARK
 
 from .base import BaseValidator, Status
 
+# ---------------------------------------------------------------------------
+# Market-aware substrate encoding patterns
+# See ipor-fusion/contracts/fuses/*/...SubstrateLib.sol for details
+# ---------------------------------------------------------------------------
+
+# Markets that use type-flag encoding: top byte = type, address at bits 159..0
+# (UniversalTokenSwapper, Odos, Velora, AaveV4)
+_TYPE_FLAG_MARKETS = {12, 42, 43, 45}
+_UTS_TYPES = {0: "Unknown", 1: "Token", 2: "Target", 3: "Slippage"}
+_ODOS_TYPES = {0: "Unknown", 1: "Token", 2: "Slippage"}
+_VELORA_TYPES = {0: "Unknown", 1: "Token", 2: "Slippage"}
+_AAVEV4_TYPES = {0: "Undefined", 1: "Asset", 2: "Spoke"}
+_TYPE_FLAG_LABELS = {12: _UTS_TYPES, 42: _ODOS_TYPES, 43: _VELORA_TYPES, 45: _AAVEV4_TYPES}
+
+# Markets that use type+address encoding: type at bits 167..160, address at bits 159..0
+# (Balancer, Aerodrome, Aerodrome Slipstream, Velodrome Superchain Slipstream,
+#  Ebisu, Midas)
+_TYPE_ADDR_MARKETS = {30, 33, 32, 36, 39}
+_AERODROME_TYPES = {0: "UNDEFINED", 1: "Gauge", 2: "Pool"}
+_BALANCER_TYPES = {0: "UNDEFINED", 1: "GAUGE", 2: "POOL", 3: "TOKEN"}
+_EBISU_TYPES = {0: "UNDEFINED", 1: "ZAPPER", 2: "REGISTRY"}
+_TYPE_ADDR_LABELS = {
+    30: _AERODROME_TYPES, 33: _AERODROME_TYPES, 32: _AERODROME_TYPES,
+    36: _BALANCER_TYPES, 39: _EBISU_TYPES,
+}
+
+# Euler V2 (market 11): address(20B) | isCollateral(1B) | canBorrow(1B) | subAccounts(1B)
+_EULER_MARKET = 11
+
+# Enso (market 38): address(20B) | functionSelector(4B) | padding(8B)
+_ENSO_MARKET = 38
+
+
+def _decode_substrate(hex_s: str, market_id: int):
+    """Decode a bytes32 substrate and return (address_or_none, label).
+
+    Returns a tuple of (address for name resolution, human-readable label).
+    """
+    # --- Euler V2: custom packed struct ---
+    if market_id == _EULER_MARKET:
+        addr = "0x" + hex_s[:40]
+        is_collateral = int(hex_s[40:42], 16) & 1
+        can_borrow = int(hex_s[42:44], 16) & 1
+        sub_accounts = hex_s[44:46]
+        flags = []
+        if is_collateral:
+            flags.append("collateral")
+        if can_borrow:
+            flags.append("borrow")
+        flags_str = "+".join(flags) if flags else "supply-only"
+        return addr, f"subAcc=0x{sub_accounts}, {flags_str}"
+
+    # --- Enso: address + function selector ---
+    if market_id == _ENSO_MARKET:
+        addr = "0x" + hex_s[:40]
+        selector = "0x" + hex_s[40:48]
+        return addr, f"selector={selector}"
+
+    # --- Type-flag encoding (top byte = type) ---
+    if market_id in _TYPE_FLAG_MARKETS:
+        type_byte = int(hex_s[:2], 16)
+        if type_byte > 0:
+            labels = _TYPE_FLAG_LABELS.get(market_id, {})
+            type_name = labels.get(type_byte, f"type={type_byte}")
+            if type_name == "Slippage":
+                raw_val = int(hex_s[2:], 16)
+                return None, f"[Slippage] {raw_val / 1e18:.4f}"
+            addr = "0x" + hex_s[24:]
+            return addr, f"[{type_name}]"
+        # type=0 means plain left-padded address (no tag needed)
+
+    # --- Type+Address encoding (type at bit 167) ---
+    if market_id in _TYPE_ADDR_MARKETS:
+        addr = "0x" + hex_s[24:]
+        type_byte = int(hex_s[20:22], 16)
+        if type_byte > 0:
+            labels = _TYPE_ADDR_LABELS.get(market_id, {})
+            type_name = labels.get(type_byte, f"type={type_byte}")
+            return addr, f"[{type_name}]"
+
+    # --- Default: left-padded address ---
+    if hex_s[:24] == "0" * 24:
+        addr = "0x" + hex_s[24:]
+        return addr, ""
+
+    # --- Fallback: right-padded address (trailing mostly zeros) ---
+    if hex_s[40:] == "0" * 24 or (hex_s[46:] == "0" * 18):
+        addr = "0x" + hex_s[:40]
+        return addr, ""
+
+    # Unknown encoding — show raw
+    return None, ""
+
 
 class Phase3Markets(BaseValidator):
     phase_name = "Market Configuration"
@@ -49,30 +142,27 @@ class Phase3Markets(BaseValidator):
             market_name = MARKETS.get(market_id, f"Market({market_id})")
             substrates = market_substrates.get(market_id, [])
 
-            # Decode substrates — they are bytes32, often zero-padded addresses
-            decoded = []
-            for s in substrates:
-                hex_s = s.hex() if isinstance(s, bytes) else s
-                # Check if it looks like an address (first 12 bytes are zero)
-                if hex_s[:24] == "0" * 24:
-                    addr = "0x" + hex_s[24:]
-                    decoded.append(addr)
-                else:
-                    decoded.append("0x" + hex_s)
-
+            # Decode substrates using market-aware logic
             sub_parts = []
-            for d in decoded[:5]:
-                if len(d) == 42 and d.startswith("0x"):  # looks like address
-                    name = self.resolve_name(d)
-                    if name:
-                        sub_parts.append(f"{name} (`{d}`)")
-                    else:
-                        sub_parts.append(f"`{d}`")
+            for s in substrates[:5]:
+                hex_s = s.hex() if isinstance(s, bytes) else s
+                addr, label = _decode_substrate(hex_s, market_id)
+
+                if addr and len(addr) == 42:
+                    name = self.resolve_name(addr)
+                    part = f"{name} (`{addr}`)" if name else f"`{addr}`"
+                    if label:
+                        part += f" {label}"
                 else:
-                    sub_parts.append(f"`{d[:18]}...`")
+                    if label:
+                        part = label
+                    else:
+                        part = f"`0x{hex_s[:16]}...`"
+                sub_parts.append(part)
+
             sub_str = ", ".join(sub_parts)
-            if len(decoded) > 5:
-                sub_str += f" (+{len(decoded)-5} more)"
+            if len(substrates) > 5:
+                sub_str += f" (+{len(substrates)-5} more)"
 
             self.add(f"MC-002-{market_id}", f"{market_name} substrates",
                      Status.INFO, f"{len(substrates)} substrate(s)", sub_str)

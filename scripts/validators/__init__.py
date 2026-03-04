@@ -8,6 +8,7 @@ from .phase7_oracle import Phase7Oracle
 from .phase8_balance import Phase8Balance
 from .phase9_rewards import Phase9Rewards
 from .phase10_hooks import Phase10Hooks
+from .phase11_market_checklist import Phase11MarketChecklist
 
 ALL_VALIDATORS = [
     Phase1VaultIdentity,
@@ -20,4 +21,5 @@ ALL_VALIDATORS = [
     Phase8Balance,
     Phase9Rewards,
     Phase10Hooks,
+    Phase11MarketChecklist,
 ]

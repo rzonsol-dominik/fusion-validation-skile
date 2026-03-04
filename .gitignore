@@ -3,3 +3,4 @@ ipor-fusion/
 reports/
 __pycache__/
 *.pyc
+.mcp.json
