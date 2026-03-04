@@ -62,7 +62,7 @@ Verify fee configuration: performance fee, management fee, deposit fee.
 - **Expected result**:
   - DAO fee recipient = correct IPOR DAO address
   - Additional recipients = consistent with agreement/documentation
-- **Notes**: Fee is split between DAO and additional recipients
+- **Notes**: Fee is split between DAO and additional recipients - all should be despley in raport
 
 ### FE-011: DAO Fee Values
 - **Condition**: IPOR DAO fee is set correctly
