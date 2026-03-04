@@ -61,7 +61,7 @@ def main():
             continue
 
         phase_label = f"Phase {validator_cls.phase_number}: {validator_cls.phase_name}"
-        print(f"Running {phase_label}...")
+        print(f"\nRunning {phase_label}...")
 
         try:
             v = validator_cls(w3, args.vault, ctx)

@@ -74,7 +74,7 @@ class BaseValidator:
             return False
 
     def fmt_addr(self, address: str) -> str:
-        return f"`{address[:6]}...{address[-4:]}`"
+        return f"`{address}`"
 
     def fmt_wei(self, value: int, decimals: int = 18) -> str:
         """Format a wei value to human-readable with decimals."""

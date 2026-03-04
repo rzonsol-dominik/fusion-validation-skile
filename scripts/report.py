@@ -3,6 +3,7 @@
 import os
 from datetime import datetime, timezone
 
+from constants import ROLES, INSPECTABLE_ROLES
 from validators.base import CheckResult, Status
 
 
@@ -86,6 +87,29 @@ def render_report(
         lines.append("")
         for r in warns:
             lines.append(f"- **{r.condition_id}** — {r.label}: {r.detail or r.value}")
+        lines.append("")
+
+    # Roles & Holders section (if event-based discovery ran)
+    role_holders_detailed = ctx.get("role_holders_detailed")
+    if role_holders_detailed:
+        lines.append("## Roles & Holders")
+        lines.append("")
+        lines.append("| Role | ID | Holders | Addresses |")
+        lines.append("|------|----|---------|-----------|")
+        for role_id in INSPECTABLE_ROLES:
+            role_name = ROLES.get(role_id, f"Role({role_id})")
+            holders = role_holders_detailed.get(role_id, [])
+            count = len(holders)
+            if holders:
+                addr_parts = []
+                for h in holders:
+                    kind = "contract" if h.is_contract else "EOA"
+                    delay_str = f"delay={h.delay}s" if h.delay else "no delay"
+                    addr_parts.append(f"`{h.address}` ({kind}, {delay_str})")
+                addrs = ", ".join(addr_parts)
+            else:
+                addrs = "_none_"
+            lines.append(f"| {role_name} | {role_id} | {count} | {addrs} |")
         lines.append("")
 
     # Phase-by-phase details

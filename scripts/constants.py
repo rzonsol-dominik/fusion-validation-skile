@@ -144,28 +144,51 @@ CHAINS = {
 # ---------------------------------------------------------------------------
 # Well-known function selectors for access control checks
 # ---------------------------------------------------------------------------
-# These are 4-byte selectors for key PlasmaVault governance functions
+# Computed via keccak256 of canonical ABI signatures from PlasmaVaultGovernance.sol
+# Struct params use tuple form: InstantWithdrawalFusesParamsStruct → (address,bytes32[])
 GOVERNANCE_SELECTORS = {
-    "addFuses(address[])": "0x3ef2e94e",
-    "removeFuses(address[])": "0x76319190",
-    "addBalanceFuse(uint256,address)": "0x9cfaf0fa",
-    "removeBalanceFuse(uint256,address)": "0xa22cb465",
-    "grantMarketSubstrates(uint256,bytes32[])": "0x7a2a562e",
-    "updateDependencyBalanceGraphs(uint256[],uint256[][])": "0x86e2c776",
-    "configureInstantWithdrawalFuses(address[],bytes32[][])": "0x3a6a40c5",
-    "setPriceOracleMiddleware(address)": "0x7eb4fcaf",
-    "setRewardsClaimManagerAddress(address)": "0x4bb93ab1",
-    "setTotalSupplyCap(uint256)": "0xb7a51b94",
-    "configurePerformanceFee(address,uint256)": "0x5a8e024f",
-    "configureManagementFee(address,uint256)": "0x2c6d2b6a",
-    "setMarketLimit(uint256,uint256)": "0x0e1d6d5b",
-    "activateMarketsLimits()": "0x9f8a13d7",
-    "deactivateMarketsLimits()": "0x1b2ef1ca",
-    "convertToPublicVault()": "0x5bb47808",
-    "enableTransferShares()": "0xf7025cd7",
-    "setWithdrawManager(address)": "0x7b64a21a",
-    "addPreHook(address,bytes4,address)": "0x6a5b5de0",
-    "removePreHook(address,bytes4)": "0xf0c4af24",
+    "addFuses(address[])": "0x3e3a86e0",
+    "removeFuses(address[])": "0x30b75244",
+    "addBalanceFuse(uint256,address)": "0x0c63abc6",
+    "removeBalanceFuse(uint256,address)": "0x48e37c55",
+    "grantMarketSubstrates(uint256,bytes32[])": "0xd1dffb88",
+    "updateDependencyBalanceGraphs(uint256[],uint256[][])": "0x1ce56e7e",
+    "configureInstantWithdrawalFuses((address,bytes32[])[])": "0xf2d888df",
+    "setPriceOracleMiddleware(address)": "0x38923d00",
+    "setRewardsClaimManagerAddress(address)": "0xcc53727b",
+    "setTotalSupplyCap(uint256)": "0x31d05b11",
+    "configurePerformanceFee(address,uint256)": "0x09f75ba0",
+    "configureManagementFee(address,uint256)": "0xafb83531",
+    "setupMarketsLimits((uint256,uint256)[])": "0x27d9e8b2",
+    "activateMarketsLimits()": "0xf1a93fdc",
+    "deactivateMarketsLimits()": "0xe52e29e7",
+    "convertToPublicVault()": "0x926e07e5",
+    "enableTransferShares()": "0xd6b4f680",
+    "setPreHookImplementations(bytes4[],address[],bytes32[][])": "0x7f676d15",
+    "updateCallbackHandler(address,address,bytes4)": "0x9879f043",
+    "setMinimalExecutionDelaysForRoles(uint64[],uint256[])": "0x67d92011",
+}
+
+# Expected role assignments from IporFusionAccessManagerInitializerLibV1.sol
+EXPECTED_FUNCTION_ROLES = {
+    "addFuses(address[])": [300],                                          # FUSE_MANAGER
+    "removeFuses(address[])": [300],                                       # FUSE_MANAGER
+    "addBalanceFuse(uint256,address)": [300],                              # FUSE_MANAGER
+    "removeBalanceFuse(uint256,address)": [300],                           # FUSE_MANAGER
+    "grantMarketSubstrates(uint256,bytes32[])": [300],                     # FUSE_MANAGER
+    "updateDependencyBalanceGraphs(uint256[],uint256[][])": [300],         # FUSE_MANAGER
+    "updateCallbackHandler(address,address,bytes4)": [300],                # FUSE_MANAGER
+    "configureInstantWithdrawalFuses((address,bytes32[])[])": [900],       # CONFIG_INSTANT_WITHDRAWAL_FUSES
+    "setPriceOracleMiddleware(address)": [100],                            # ATOMIST
+    "setRewardsClaimManagerAddress(address)": [601],                       # TECH_REWARDS_CLAIM_MANAGER
+    "setTotalSupplyCap(uint256)": [100],                                   # ATOMIST
+    "configurePerformanceFee(address,uint256)": [400],                     # TECH_PERFORMANCE_FEE_MANAGER
+    "configureManagementFee(address,uint256)": [500],                      # TECH_MANAGEMENT_FEE_MANAGER
+    "setupMarketsLimits((uint256,uint256)[])": [100],                      # ATOMIST
+    "activateMarketsLimits()": [100],                                      # ATOMIST
+    "deactivateMarketsLimits()": [100],                                    # ATOMIST
+    "setPreHookImplementations(bytes4[],address[],bytes32[][])": [301],    # PRE_HOOKS_MANAGER
+    "setMinimalExecutionDelaysForRoles(uint64[],uint256[])": [1],          # OWNER
 }
 
 # Zero address

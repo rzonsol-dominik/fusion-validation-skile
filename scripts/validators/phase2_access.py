@@ -1,7 +1,7 @@
 """Phase 2: Access Control (AC-001 to AC-022)."""
 
 from abis import ACCESS_MANAGER_ABI
-from constants import GOVERNANCE_SELECTORS, INSPECTABLE_ROLES, ROLES, TECH_ROLES, ZERO_ADDRESS
+from constants import EXPECTED_FUNCTION_ROLES, GOVERNANCE_SELECTORS, INSPECTABLE_ROLES, ROLES, TECH_ROLES, ZERO_ADDRESS
 
 from .base import BaseValidator, Status
 
@@ -26,9 +26,8 @@ class Phase2AccessControl(BaseValidator):
             self.add("AC-001", "AccessManager is a contract", Status.FAIL, am_addr)
             return self.results
 
-        # AC-002: ADMIN_ROLE holders — discover via hasRole probing
-        # We can't enumerate all holders directly, but we check known patterns
-        self._discover_role_holders(am)
+        # AC-002: Role holders — discover via event logs (with fallback)
+        self._discover_role_holders_from_events(am)
 
         # AC-005: Role admin hierarchy
         self._check_role_hierarchy(am)
@@ -93,19 +92,103 @@ class Phase2AccessControl(BaseValidator):
 
         return self.results
 
-    def _discover_role_holders(self, am):
-        """Try to discover role holders for key roles.
+    def _discover_role_holders_from_events(self, am):
+        """Discover role holders via AccessManager event logs.
 
-        Since AccessManager doesn't expose an enumeration function,
-        we check if the vault itself and the AccessManager hold roles,
-        and report what we find.
+        Falls back to probe-based method if event scanning fails.
+        """
+        am_addr = self.ctx.get("access_manager", "")
+        chain = self.ctx.get("chain", "")
+
+        try:
+            from events import discover_role_holders, RoleHolder
+
+            block = self.ctx.get("block")
+            role_map = discover_role_holders(self.w3, am_addr, chain, target_block=block)
+
+            # Enrich each holder: check is_contract, verify with hasRole on-chain
+            role_holders_detailed = {}
+            role_holders_legacy = {}
+
+            for role_id in INSPECTABLE_ROLES:
+                role_name = ROLES.get(role_id, f"Role({role_id})")
+                holders_raw = role_map.get(role_id, {})
+                verified_holders = []
+                legacy_holders = []
+
+                for addr, holder in holders_raw.items():
+                    # Check if contract
+                    holder.is_contract = self.is_contract(addr)
+
+                    # Verify with hasRole on-chain
+                    try:
+                        ok, result = self.call(
+                            am, "hasRole", role_id,
+                            self.w3.to_checksum_address(addr),
+                        )
+                        if ok:
+                            is_member, exec_delay = result
+                            holder.verified = is_member
+                            if is_member:
+                                holder.delay = exec_delay
+                                verified_holders.append(holder)
+                                legacy_holders.append((addr, exec_delay))
+                            # else: events say granted but on-chain says no — skip
+                        else:
+                            # Can't verify — include with caution
+                            holder.verified = None
+                            verified_holders.append(holder)
+                            legacy_holders.append((addr, holder.delay))
+                    except Exception:
+                        holder.verified = None
+                        verified_holders.append(holder)
+                        legacy_holders.append((addr, holder.delay))
+
+                role_holders_detailed[role_id] = verified_holders
+                role_holders_legacy[role_id] = legacy_holders
+
+                # Emit AC-002 checks for major roles
+                if role_id in [0, 1, 2, 100, 200, 300]:
+                    if verified_holders:
+                        holder_strs = []
+                        for h in verified_holders:
+                            kind = "contract" if h.is_contract else "EOA"
+                            ver = "" if h.verified else " unverified"
+                            delay_str = f"delay={h.delay}s" if h.delay else "no delay"
+                            holder_strs.append(
+                                f"{self.fmt_addr(h.address)} ({kind}, {delay_str}{ver})"
+                            )
+                        status = Status.PASS
+                        if role_id == 0:
+                            status = Status.INFO
+                        self.add(f"AC-002-{role_id}", f"{role_name} holders",
+                                 status, "; ".join(holder_strs))
+                    else:
+                        status = Status.INFO
+                        if role_id in [100]:
+                            status = Status.WARN
+                        self.add(f"AC-002-{role_id}", f"{role_name} holders",
+                                 status, "No holders found")
+
+            self.ctx["role_holders_detailed"] = role_holders_detailed
+            self.ctx["role_holders"] = role_holders_legacy
+
+        except Exception as exc:
+            print(f"  [access] Event-based discovery failed: {exc}, using fallback")
+            self.add("AC-002", "Role holder discovery", Status.WARN,
+                     "Fallback mode", f"Event scan failed: {exc}")
+            self._discover_role_holders_fallback(am)
+
+    def _discover_role_holders_fallback(self, am):
+        """Fallback: discover role holders by probing known contract addresses.
+
+        Used when event scanning is unavailable.
         """
         known_addresses = [self.vault_address]
         am_addr = self.ctx.get("access_manager", "")
         if am_addr:
             known_addresses.append(am_addr)
 
-        # Also check other known contract addresses from ctx
         for key in ["oracle", "rewards_manager", "vault_base", "implementation"]:
             addr = self.ctx.get(key)
             if addr and not self.is_zero(addr):
@@ -131,14 +214,13 @@ class Phase2AccessControl(BaseValidator):
                 if holders:
                     holder_strs = [f"{self.fmt_addr(h[0])} (delay={h[1]}s)" for h in holders]
                     status = Status.PASS
-                    # ADMIN_ROLE held by non-AccessManager contracts is suspicious
                     if role_id == 0:
                         status = Status.INFO
                     self.add(f"AC-002-{role_id}", f"{role_name} holders (known contracts)",
                              status, "; ".join(holder_strs))
                 else:
                     status = Status.INFO
-                    if role_id in [100]:  # ATOMIST should have at least one holder
+                    if role_id in [100]:
                         status = Status.WARN
                     self.add(f"AC-002-{role_id}", f"{role_name} holders (known contracts)",
                              status, "No holders found among known contracts",
@@ -148,7 +230,23 @@ class Phase2AccessControl(BaseValidator):
 
     def _check_role_hierarchy(self, am):
         """Check role admin and guardian assignments."""
-        for role_id in [1, 2, 100, 200, 300, 600, 700, 800, 900, 1000, 1100, 1200]:
+        expected_admin = {
+            1: [1],        # OWNER admin = OWNER
+            2: [1],        # GUARDIAN admin = OWNER
+            100: [1],      # ATOMIST admin = OWNER
+            200: [100],    # ALPHA admin = ATOMIST
+            300: [100],    # FUSE_MANAGER admin = ATOMIST
+            301: [1],      # PRE_HOOKS_MANAGER admin = OWNER
+            600: [100],    # CLAIM_REWARDS admin = ATOMIST
+            700: [100],    # TRANSFER_REWARDS admin = ATOMIST
+            800: [100],    # WHITELIST admin = ATOMIST
+            900: [100],    # CONFIG_INSTANT_WITHDRAWAL_FUSES admin = ATOMIST
+            1000: [100],   # UPDATE_MARKETS_BALANCES admin = ATOMIST
+            1100: [100],   # UPDATE_REWARDS_BALANCE admin = ATOMIST
+            1200: [100],   # PRICE_ORACLE_MIDDLEWARE_MANAGER admin = ATOMIST
+        }
+
+        for role_id in [1, 2, 100, 200, 300, 301, 600, 700, 800, 900, 1000, 1100, 1200]:
             role_name = ROLES.get(role_id, f"Role({role_id})")
 
             ok_admin, admin_role = self.call(am, "getRoleAdmin", role_id)
@@ -159,10 +257,13 @@ class Phase2AccessControl(BaseValidator):
                 detail = ""
                 status = Status.INFO
 
-                # OWNER should be admin of most roles
-                if role_id in [2, 100, 200, 300] and admin_role != 1:
+                expected = expected_admin.get(role_id, [])
+                if expected and admin_role not in expected:
                     status = Status.WARN
-                    detail = f"Expected OWNER_ROLE(1) as admin, got {admin_name}"
+                    expected_names = [ROLES.get(e, str(e)) for e in expected]
+                    detail = f"Expected {expected_names}, got {admin_name}"
+                elif expected:
+                    status = Status.PASS
 
                 guardian_info = ""
                 if ok_guard:
@@ -182,36 +283,32 @@ class Phase2AccessControl(BaseValidator):
                 role_name = ROLES.get(role_id, f"Role({role_id})")
                 mappings.append((fn_sig, role_id, role_name))
 
-        if mappings:
-            # Group by role
-            by_role = {}
-            for fn_sig, role_id, role_name in mappings:
-                by_role.setdefault(role_name, []).append(fn_sig)
-
-            for role_name, fns in sorted(by_role.items()):
-                fn_list = ", ".join(f.split("(")[0] for f in fns)
-                self.add("AC-010", f"Functions requiring {role_name}",
-                         Status.INFO, fn_list)
-
-            # Check critical functions have appropriate roles
-            critical_fns = {
-                "addFuses(address[])": [300],         # FUSE_MANAGER
-                "removeFuses(address[])": [300],      # FUSE_MANAGER
-                "setPriceOracleMiddleware(address)": [1200],  # PRICE_ORACLE_MIDDLEWARE_MANAGER
-                "configurePerformanceFee(address,uint256)": [1, 0],  # OWNER or ADMIN
-                "configureManagementFee(address,uint256)": [1, 0],   # OWNER or ADMIN
-            }
-            for fn_sig, expected_roles in critical_fns.items():
-                for fn_s, role_id, role_name in mappings:
-                    if fn_s == fn_sig:
-                        if role_id in expected_roles:
-                            self.add(f"AC-010-{fn_sig.split('(')[0]}", f"{fn_sig.split('(')[0]} role",
-                                     Status.PASS, role_name)
-                        else:
-                            self.add(f"AC-010-{fn_sig.split('(')[0]}", f"{fn_sig.split('(')[0]} role",
-                                     Status.WARN, role_name,
-                                     f"Expected one of {[ROLES.get(r, r) for r in expected_roles]}")
-                        break
-        else:
+        if not mappings:
             self.add("AC-010", "Function-role mappings", Status.SKIP, None,
                      "Could not read function role mappings")
+            return
+
+        by_role = {}
+        for fn_sig, role_id, role_name in mappings:
+            by_role.setdefault(role_name, []).append(fn_sig)
+
+        for role_name, fns in sorted(by_role.items()):
+            fn_list = ", ".join(f.split("(")[0] for f in fns)
+            self.add("AC-010", f"Functions requiring {role_name}",
+                     Status.INFO, fn_list)
+
+        for fn_sig, role_id, role_name in mappings:
+            expected_roles = EXPECTED_FUNCTION_ROLES.get(fn_sig)
+            if expected_roles is None:
+                continue
+
+            fn_short = fn_sig.split("(")[0]
+            if role_id in expected_roles:
+                self.add(f"AC-010-{fn_short}", f"{fn_short} role",
+                         Status.PASS, role_name,
+                         f"Matches expected {ROLES.get(expected_roles[0], expected_roles[0])}")
+            else:
+                expected_names = [ROLES.get(r, str(r)) for r in expected_roles]
+                self.add(f"AC-010-{fn_short}", f"{fn_short} role",
+                         Status.WARN, role_name,
+                         f"Expected {expected_names}, got {role_name}")

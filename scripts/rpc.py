@@ -64,6 +64,7 @@ def get_block_number(w3: Web3) -> int:
 def is_verified_on_etherscan(address: str, chain: str) -> Optional[bool]:
     """Check if a contract is verified on Etherscan/block explorer.
 
+    Uses Etherscan V2 API with chainid parameter.
     Returns True/False, or None if the API key is not set or the call fails.
     """
     chain_cfg = CHAINS.get(chain)
@@ -76,8 +77,9 @@ def is_verified_on_etherscan(address: str, chain: str) -> Optional[bool]:
 
     try:
         resp = requests.get(
-            chain_cfg["etherscan_url"],
+            "https://api.etherscan.io/v2/api",
             params={
+                "chainid": chain_cfg["chain_id"],
                 "module": "contract",
                 "action": "getabi",
                 "address": address,

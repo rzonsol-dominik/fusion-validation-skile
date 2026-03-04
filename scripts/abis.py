@@ -157,6 +157,29 @@ ACCESS_MANAGER_ABI = [
     _view("getSchedule", [_bytes32("id")], [_uint48("")]),
     _view("getGrantDelay", [_uint64("roleId")], [_uint32("")]),
     _view("getRoleGrantDelay", [_uint64("roleId")], [_uint32("")]),
+
+    # Events for role holder discovery
+    {
+        "type": "event",
+        "name": "RoleGranted",
+        "anonymous": False,
+        "inputs": [
+            {"name": "roleId", "type": "uint64", "indexed": True},
+            {"name": "account", "type": "address", "indexed": True},
+            {"name": "delay", "type": "uint32", "indexed": False},
+            {"name": "since", "type": "uint48", "indexed": False},
+            {"name": "newMember", "type": "bool", "indexed": False},
+        ],
+    },
+    {
+        "type": "event",
+        "name": "RoleRevoked",
+        "anonymous": False,
+        "inputs": [
+            {"name": "roleId", "type": "uint64", "indexed": True},
+            {"name": "account", "type": "address", "indexed": True},
+        ],
+    },
 ]
 
 # ---------------------------------------------------------------------------
