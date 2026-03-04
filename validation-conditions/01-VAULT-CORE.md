@@ -1,166 +1,165 @@
 # 01 - Vault Core Configuration Validation
 
-## Cel
-Weryfikacja bazowej konfiguracji PlasmaVault na produkcji.
+## Purpose
+Verify the base configuration of PlasmaVault in production.
 
 ---
 
 ## CRITICAL
 
 ### VC-001: Underlying Token
-- **Warunek**: Vault ma prawidlowy underlying token (ERC4626 asset)
-- **Jak sprawdzic**:
-  1. `PlasmaVault.asset()` → adres tokena
-  2. `PriceOracleMiddleware.getAssetPrice(asset)` → cena musi istniec i byc > 0
-- **Oczekiwany wynik**: Adres oczekiwanego tokenu (np. USDC, DAI, WETH) ORAZ cena dostepna w oracle
-- **Uwagi**: Nie mozna zmienic po deploymencie; musi zgadzac sie z zamierzonym tokenem vaulta. Underlying token BEZ ceny w PriceOracleMiddleware = konwersja balance USD → amount jest niemozliwa (totalAssets bedzie bledny)
+- **Condition**: Vault has a valid underlying token (ERC4626 asset)
+- **How to check**:
+  1. `PlasmaVault.asset()` → token address
+  2. `PriceOracleMiddleware.getAssetPrice(asset)` → price must exist and be > 0
+- **Expected result**: Address of the expected token (e.g., USDC, DAI, WETH) AND price available in oracle
+- **Notes**: Cannot be changed after deployment; must match the vault's intended token. Underlying token WITHOUT a price in PriceOracleMiddleware = USD → amount balance conversion is impossible (totalAssets will be incorrect)
 
 ### VC-002: Access Manager Address
-- **Warunek**: Vault jest polaczony z poprawnym IporFusionAccessManager
-- **Jak sprawdzic**: `PlasmaVaultGovernance.getAccessManagerAddress()`
-- **Oczekiwany wynik**: Adres wdrazonego AccessManagera
-- **Uwagi**: AccessManager kontroluje CALY system uprawnien. Funkcja `getAccessManagerAddress()` istnieje w `PlasmaVaultGovernance.sol:454` (potwierdzone w kodzie)
+- **Condition**: Vault is connected to the correct IporFusionAccessManager
+- **How to check**: `PlasmaVaultGovernance.getAccessManagerAddress()`
+- **Expected result**: Address of the deployed AccessManager
+- **Notes**: AccessManager controls the ENTIRE permission system. Function `getAccessManagerAddress()` exists in `PlasmaVaultGovernance.sol:454` (confirmed in code)
 
 ### VC-003: Price Oracle Middleware
-- **Warunek**: Vault ma skonfigurowany price oracle
-- **Jak sprawdzic**: `PlasmaVaultGovernance.getPriceOracleMiddleware()`
-- **Oczekiwany wynik**: Adres wdrazonego PriceOracleMiddleware (nie address(0))
-- **Uwagi**: Oracle musi uzywac USD jako quote currency (address(0x348))
+- **Condition**: Vault has a configured price oracle
+- **How to check**: `PlasmaVaultGovernance.getPriceOracleMiddleware()`
+- **Expected result**: Address of the deployed PriceOracleMiddleware (not address(0))
+- **Notes**: Oracle must use USD as quote currency (address(0x348))
 
 ### VC-004: PlasmaVaultBase Address
-- **Warunek**: Vault ma prawidlowy PlasmaVaultBase (extension contract)
-- **Jak sprawdzic**: Odczyt z storage slot PlasmaVaultBase
-- **Oczekiwany wynik**: Prawidlowy adres kontraktu PlasmaVaultBase (nie address(0))
-- **Uwagi**: Uzywany do delegatecall dla ERC20 voting, permit, supply cap
+- **Condition**: Vault has a valid PlasmaVaultBase (extension contract)
+- **How to check**: Read from storage slot PlasmaVaultBase
+- **Expected result**: Valid PlasmaVaultBase contract address (not address(0))
+- **Notes**: Used for delegatecall for ERC20 voting, permit, supply cap
 
 ### VC-005: Proxy Implementation (Minimal Proxy / Clones)
-- **Warunek**: Vault jest Minimal Proxy (OpenZeppelin Clones) wskazujacy na poprawna implementacje bazowa
-- **Jak sprawdzic**: Odczyt bytecodu proxy - powinien zawierac pattern EIP-1167 Minimal Proxy wskazujacy na base implementation. Alternatywnie: sprawdz PlasmaVaultFactory ktory deployowal vault via `Clones.clone(baseAddress)`
-- **Oczekiwany wynik**: Adres biezacej implementacji bazowej PlasmaVault
-- **Uwagi**: Vault NIE uzywa UUPS proxy. Uzywa Minimal Proxy (Clones) - kazdy vault to niezalezny klon bazowej implementacji tworzony przez PlasmaVaultFactory
+- **Condition**: Vault is a Minimal Proxy (OpenZeppelin Clones) pointing to a valid base implementation
+- **How to check**: Read proxy bytecode - should contain EIP-1167 Minimal Proxy pattern pointing to the base implementation. Alternatively: check PlasmaVaultFactory which deployed the vault via `Clones.clone(baseAddress)`
+- **Expected result**: Address of the current base PlasmaVault implementation
+- **Notes**: Vault does NOT use UUPS proxy. It uses Minimal Proxy (Clones) - each vault is an independent clone of the base implementation created by PlasmaVaultFactory
 
 ### VC-006: Vault Initialization Status
-- **Warunek**: Vault jest w pelni zainicjalizowany
-- **Jak sprawdzic**: Probuj wywolac `proxyInitialize()` - powinna zrevertowac
-- **Oczekiwany wynik**: Revert (juz zainicjalizowany)
-- **Uwagi**: Zapobieganie ponownemu inicjowaniu
+- **Condition**: Vault is fully initialized
+- **How to check**: Try calling `proxyInitialize()` - should revert
+- **Expected result**: Revert (already initialized)
+- **Notes**: Prevents re-initialization
 
 ---
 
 ## HIGH
 
 ### VC-010: Total Supply Cap
-- **Warunek**: Supply cap jest ustawiony na sensowna wartosc
-- **Jak sprawdzic**: `PlasmaVaultGovernance.getTotalSupplyCap()`
-- **Oczekiwany wynik**: Wartosc zgodna z oczekiwaniami (domyslnie type(uint256).max)
-- **Uwagi**: Jesli vault ma limit wielkosci, wartosc musi byc != max
+- **Condition**: Supply cap is set to a reasonable value
+- **How to check**: `PlasmaVaultGovernance.getTotalSupplyCap()`
+- **Expected result**: Value consistent with expectations (default type(uint256).max)
+- **Notes**: If vault has a size limit, the value must be != max
 
 ### VC-011: Share Token Name & Symbol
-- **Warunek**: Token ERC20 vaulta ma poprawna nazwe i symbol
-- **Jak sprawdzic**: `PlasmaVault.name()`, `PlasmaVault.symbol()`
-- **Oczekiwany wynik**: Oczekiwana nazwa i symbol
-- **Uwagi**: Czytelne nazwy dla integratorow i UI
+- **Condition**: Vault's ERC20 token has a correct name and symbol
+- **How to check**: `PlasmaVault.name()`, `PlasmaVault.symbol()`
+- **Expected result**: Expected name and symbol
+- **Notes**: Readable names for integrators and UI
 
 ### VC-012: Decimals Offset
-- **Warunek**: Vault ma prawidlowy offset decymali (DECIMALS_OFFSET = 2)
-- **Jak sprawdzic**: `PlasmaVault.decimals()`
-- **Oczekiwany wynik**: `underlying.decimals() + 2` (np. USDC 6 + 2 = 8)
-- **Uwagi**: Wbudowane w kontrakt, weryfikacja zgodnosci
+- **Condition**: Vault has a valid decimals offset (DECIMALS_OFFSET = 2)
+- **How to check**: `PlasmaVault.decimals()`
+- **Expected result**: `underlying.decimals() + 2` (e.g., USDC 6 + 2 = 8)
+- **Notes**: Built into the contract, consistency verification
 
 ### VC-013: Withdraw Manager
-- **Warunek**: WithdrawManager jest poprawnie podlaczony
-- **Jak sprawdzic**: Odczyt adresu WithdrawManager z vault storage
-- **Oczekiwany wynik**: Prawidlowy adres WithdrawManager (nie address(0))
-- **Uwagi**: Kontroluje wyplaty i kolejke requestow
+- **Condition**: WithdrawManager is correctly connected
+- **How to check**: Read WithdrawManager address from vault storage
+- **Expected result**: Valid WithdrawManager address (not address(0))
+- **Notes**: Controls withdrawals and the request queue
 
 ### VC-014: Public Vault Status
-- **Warunek**: Vault jest public lub private zgodnie z zamierzeniem
-- **Jak sprawdzic**: Sprawdz czy `deposit()` i `mint()` maja PUBLIC_ROLE w AccessManager
-- **Oczekiwany wynik**: PUBLIC_ROLE jesli vault ma byc publiczny, WHITELIST_ROLE jesli prywatny
-- **Uwagi**: `convertToPublicVault()` zmienia to na PUBLIC_ROLE
+- **Condition**: Vault is public or private as intended
+- **How to check**: Check if `deposit()` and `mint()` have PUBLIC_ROLE in AccessManager
+- **Expected result**: PUBLIC_ROLE if vault should be public, WHITELIST_ROLE if private
+- **Notes**: `convertToPublicVault()` changes this to PUBLIC_ROLE
 
 ### VC-015: Share Transfers Status
-- **Warunek**: Transfery sharesow sa wlaczone/wylaczone zgodnie z zamierzeniem
-- **Jak sprawdzic**: `AccessManager.getTargetFunctionRole(vault, transfer.selector)` - sprawdz przypisana role
-- **Oczekiwany wynik**:
-  - Domyslnie: TECH_VAULT_TRANSFER_SHARES_ROLE (7) - transfery zablokowane dla zwyklych userow
-  - Po `enableTransferShares()`: PUBLIC_ROLE - transfery wlaczone
-- **Uwagi**: `enableTransferShares()` zmienia role transfer/transferFrom na PUBLIC_ROLE. Wywolanie wymaga ATOMIST_ROLE
+- **Condition**: Share transfers are enabled/disabled as intended
+- **How to check**: `AccessManager.getTargetFunctionRole(vault, transfer.selector)` - check assigned role
+- **Expected result**:
+  - Default: TECH_VAULT_TRANSFER_SHARES_ROLE (7) - transfers blocked for regular users
+  - After `enableTransferShares()`: PUBLIC_ROLE - transfers enabled
+- **Notes**: `enableTransferShares()` changes the role for transfer/transferFrom to PUBLIC_ROLE. Requires ATOMIST_ROLE
 
 ### VC-016: RewardsClaimManager Address
-- **Warunek**: Jesli vault uzywa rewards - RewardsClaimManager jest skonfigurowany
-- **Jak sprawdzic**: `PlasmaVaultGovernance.getRewardsClaimManagerAddress()`
-- **Oczekiwany wynik**: Prawidlowy adres lub address(0) jesli nie uzywany
-- **Uwagi**: Wymagany do claimowania i vestingu nagrod
+- **Condition**: If vault uses rewards - RewardsClaimManager is configured
+- **How to check**: `PlasmaVaultGovernance.getRewardsClaimManagerAddress()`
+- **Expected result**: Valid address or address(0) if not used
+- **Notes**: Required for claiming and vesting rewards
 
 ---
 
 ## MEDIUM
 
 ### VC-020: ERC4626 Compliance - maxDeposit
-- **Warunek**: maxDeposit zwraca sensowna wartosc
-- **Jak sprawdzic**: `PlasmaVault.maxDeposit(someAddress)`
-- **Oczekiwany wynik**: > 0 jesli vault przyjmuje depozyty
+- **Condition**: maxDeposit returns a reasonable value
+- **How to check**: `PlasmaVault.maxDeposit(someAddress)`
+- **Expected result**: > 0 if vault accepts deposits
 
 ### VC-021: ERC4626 Compliance - maxMint
-- **Warunek**: maxMint zwraca sensowna wartosc
-- **Jak sprawdzic**: `PlasmaVault.maxMint(someAddress)`
-- **Oczekiwany wynik**: > 0 jesli vault przyjmuje depozyty
+- **Condition**: maxMint returns a reasonable value
+- **How to check**: `PlasmaVault.maxMint(someAddress)`
+- **Expected result**: > 0 if vault accepts deposits
 
 ### VC-022: ERC4626 Compliance - totalAssets
-- **Warunek**: totalAssets jest >= balance vaulta
-- **Jak sprawdzic**: `PlasmaVault.totalAssets()` vs `ERC20(asset).balanceOf(vault)`
-- **Oczekiwany wynik**: totalAssets >= balanceOf (bo zawiera market balances + rewards)
+- **Condition**: totalAssets is >= vault balance
+- **How to check**: `PlasmaVault.totalAssets()` vs `ERC20(asset).balanceOf(vault)`
+- **Expected result**: totalAssets >= balanceOf (because it includes market balances + rewards)
 
 ### VC-023: VotesPlugin Configuration
-- **Warunek**: Jesli vault uzywa voting - PlasmaVaultVotesPlugin jest skonfigurowany
-- **Jak sprawdzic**: Odczyt z vault storage
-- **Oczekiwany wynik**: Prawidlowy adres lub address(0) jesli nieuzywany
+- **Condition**: If vault uses voting - PlasmaVaultVotesPlugin is configured
+- **How to check**: Read from vault storage
+- **Expected result**: Valid address or address(0) if not used
 
 ### VC-024: Callback Handlers
-- **Warunek**: Callback handlery sa skonfigurowane dla wymaganych protokolow
-- **Jak sprawdzic**: Odczyt callback handler mappingu
-- **Oczekiwany wynik**: Prawidlowe handlery dla uzywanych protokolow
+- **Condition**: Callback handlers are configured for required protocols
+- **How to check**: Read callback handler mapping
+- **Expected result**: Valid handlers for used protocols
 
 ### VC-025: Pre-Hooks Configuration
-- **Warunek**: Pre-hooks sa skonfigurowane zgodnie z zamierzeniem
-- **Jak sprawdzic**: Odczyt pre-hooks mappingu (selector → implementation)
-- **Oczekiwany wynik**: Odpowiednie pre-hooks dla wymaganych selektorow
-- **Uwagi**: Dostepne pre-hooks:
-  - **PauseFunctionPreHook** - emergency pause per-function (revertuje z `FunctionPaused`)
-  - **ExchangeRateValidatorPreHook** - walidacja driftu exchange rate z konfigurowalnym progiem
-  - **UpdateBalancesPreHook** - aktualizacja balansow przed operacja
-  - **UpdateBalancesIgnoreDustPreHook** - aktualizacja z tolerancja na dust
-  - **ValidateAllAssetsPricesPreHook** - walidacja cen assetow przez oracle
-  - **EIP7702DelegateValidationPreHook** - walidacja EIP-7702 delegate txs
+- **Condition**: Pre-hooks are configured as intended
+- **How to check**: Read pre-hooks mapping (selector → implementation)
+- **Expected result**: Appropriate pre-hooks for required selectors
+- **Notes**: Available pre-hooks:
+  - **PauseFunctionPreHook** - emergency pause per-function (reverts with `FunctionPaused`)
+  - **ExchangeRateValidatorPreHook** - exchange rate drift validation with configurable threshold
+  - **UpdateBalancesPreHook** - balance update before operation
+  - **UpdateBalancesIgnoreDustPreHook** - update with dust tolerance
+  - **ValidateAllAssetsPricesPreHook** - asset price validation via oracle
+  - **EIP7702DelegateValidationPreHook** - EIP-7702 delegate tx validation
 
 ### VC-026: PlasmaVaultInitData Verification
-- **Warunek**: Parametry inicjalizacji vaulta sa poprawne
-- **Jak sprawdzic**: Sprawdz eventy z proxyInitialize() lub odczytaj zapisane wartosci:
-  - `assetName` / `assetSymbol` - nazwa i symbol share tokena
-  - `underlyingToken` - adres underlying ERC20
-  - `priceOracleMiddleware` - adres oracle
-  - `accessManager` - adres AccessManager
-  - `plasmaVaultBase` - adres PlasmaVaultBase extension
-  - `withdrawManager` - adres WithdrawManager (address(0) = disabled)
-  - `feeConfig` - konfiguracja performance i management fee
-- **Oczekiwany wynik**: Wszystkie parametry zgodne z zamierzeniem
+- **Condition**: Vault initialization parameters are correct
+- **How to check**: Check events from proxyInitialize() or read stored values:
+  - `assetName` / `assetSymbol` - share token name and symbol
+  - `underlyingToken` - underlying ERC20 address
+  - `priceOracleMiddleware` - oracle address
+  - `accessManager` - AccessManager address
+  - `plasmaVaultBase` - PlasmaVaultBase extension address
+  - `withdrawManager` - WithdrawManager address (address(0) = disabled)
+  - `feeConfig` - performance and management fee configuration
+- **Expected result**: All parameters match the intended values
 
-### VC-027: Exchange Rate Validator (jesli uzywany)
-- **Warunek**: ExchangeRateValidatorPreHook ma sensowny threshold
-- **Jak sprawdzic**: Odczyt substrates pre-hook dla ExchangeRateValidator
-- **Oczekiwany wynik**: Threshold zgodny z oczekiwana zmiennoscia vaulta (np. 1-5%)
-- **Uwagi**: Za ciasny threshold = blokuje normalne operacje; za luźny = brak ochrony
+### VC-027: Exchange Rate Validator (if used)
+- **Condition**: ExchangeRateValidatorPreHook has a reasonable threshold
+- **How to check**: Read substrates pre-hook for ExchangeRateValidator
+- **Expected result**: Threshold consistent with expected vault volatility (e.g., 1-5%)
+- **Notes**: Too tight threshold = blocks normal operations; too loose = no protection
 
 ### VC-028: ERC721 Receiver Support
-- **Warunek**: Vault implementuje onERC721Received (jesli uzywa NFT pozycji - Uniswap V3, Ramses, Slipstream)
-- **Jak sprawdzic**: Vault odpowiada na `onERC721Received()` poprawnym selektorem
-- **Oczekiwany wynik**: Zwraca `IERC721Receiver.onERC721Received.selector`
-- **Uwagi**: Bez tego vault nie moze przyjmowac NFT pozycji z Uniswap V3 / Ramses / Aerodrome Slipstream
+- **Condition**: Vault implements onERC721Received (if using NFT positions - Uniswap V3, Ramses, Slipstream)
+- **How to check**: Vault responds to `onERC721Received()` with the correct selector
+- **Expected result**: Returns `IERC721Receiver.onERC721Received.selector`
+- **Notes**: Without this, vault cannot receive NFT positions from Uniswap V3 / Ramses / Aerodrome Slipstream
 
 ### VC-029: WithdrawManager Initialization
-- **Warunek**: WithdrawManager jest zainicjalizowany (jesli uzywany)
-- **Jak sprawdzic**: WithdrawManager.getPlasmaVaultAddress() zwraca adres vaulta
-- **Oczekiwany wynik**: Poprawny adres vaulta (nie address(0))
-- **Uwagi**: WithdrawManager musi wskazywac na wlasciwy vault. Zmiana mozliwa przez updatePlasmaVaultAddress() (ATOMIST_ROLE)
-ś
+- **Condition**: WithdrawManager is initialized (if used)
+- **How to check**: WithdrawManager.getPlasmaVaultAddress() returns the vault address
+- **Expected result**: Correct vault address (not address(0))
+- **Notes**: WithdrawManager must point to the correct vault. Can be changed via updatePlasmaVaultAddress() (ATOMIST_ROLE)

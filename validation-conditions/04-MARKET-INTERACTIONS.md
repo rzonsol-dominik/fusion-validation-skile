@@ -1,141 +1,141 @@
 # 04 - Market Interactions Validation
 
-## Cel
-Weryfikacja interakcji miedzy marketami: dependency graph, market limits, cross-market balance tracking.
+## Purpose
+Verify inter-market interactions: dependency graph, market limits, cross-market balance tracking.
 
 ---
 
 ## CRITICAL
 
 ### MI-001: Dependency Balance Graph Configuration
-- **Warunek**: Markety z wzajemnymi zaleznosci maja skonfigurowany dependency graph
-- **Jak sprawdzic**: `PlasmaVaultGovernance.getDependencyBalanceGraph(marketId)` dla kazdego marketu
-- **Oczekiwany wynik**: Poprawne listy zaleznosci
-- **Uwagi**: BEZ dependency graph - balance updates jednego marketu NIE zaktualizuja powiazanych marketow
+- **Condition**: Markets with mutual dependencies have a configured dependency graph
+- **How to check**: `PlasmaVaultGovernance.getDependencyBalanceGraph(marketId)` for each market
+- **Expected result**: Correct dependency lists
+- **Notes**: WITHOUT dependency graph - balance updates for one market will NOT update related markets
 
-#### Typowe zaleznosci ktore MUSZA byc skonfigurowane:
+#### Typical dependencies that MUST be configured:
 
-| Market | Zalezy od | Dlaczego |
-|--------|-----------|----------|
-| UNISWAP_SWAP_V3 (swap) | ERC20_VAULT_BALANCE | Swap zmienia balance tokenow w vaulcie |
-| UNISWAP_SWAP_V3_POSITIONS | ERC20_VAULT_BALANCE | LP pozycje uzywaja tokenow z vaulta |
-| CURVE_POOL | ERC20_VAULT_BALANCE | LP wymaga tokenow |
-| CURVE_LP_GAUGE | CURVE_POOL | Gauge stakuje LP tokeny |
-| BALANCER_* | ERC20_VAULT_BALANCE | Pool uzywa tokenow |
-| AAVE_V3 (z borrow) | ERC20_VAULT_BALANCE | Borrow dodaje tokeny do vaulta |
-| MORPHO (z borrow) | ERC20_VAULT_BALANCE | Borrow dodaje tokeny do vaulta |
-| GEARBOX_FARM_DTOKEN_V3 | GEARBOX_POOL_V3 | Farm stakuje dTokeny z pool |
-| FLUID_INSTADAPP_STAKING | FLUID_INSTADAPP_POOL | Staking uzywa tokenow pool |
-| AERODROME gauge (30) | AERODROME liquidity | Gauge stakuje LP tokeny |
-| AERODROME_SLIPSTREAM gauge (33) | AERODROME_SLIPSTREAM pool | Gauge stakuje CL pozycje |
-| VELODROME_SUPERCHAIN gauge (31) | VELODROME_SUPERCHAIN pool | Gauge stakuje LP tokeny |
-| VELODROME_SUPERCHAIN_SLIPSTREAM gauge (32) | VELODROME_SUPERCHAIN_SLIPSTREAM pool | Gauge stakuje CL pozycje |
-| BALANCER gauge (36) | BALANCER pool (36) | Gauge stakuje BPT tokeny (lp_token()) |
+| Market | Depends on | Reason |
+|--------|-----------|--------|
+| UNISWAP_SWAP_V3 (swap) | ERC20_VAULT_BALANCE | Swap changes token balances in vault |
+| UNISWAP_SWAP_V3_POSITIONS | ERC20_VAULT_BALANCE | LP positions use tokens from vault |
+| CURVE_POOL | ERC20_VAULT_BALANCE | LP requires tokens |
+| CURVE_LP_GAUGE | CURVE_POOL | Gauge stakes LP tokens |
+| BALANCER_* | ERC20_VAULT_BALANCE | Pool uses tokens |
+| AAVE_V3 (with borrow) | ERC20_VAULT_BALANCE | Borrow adds tokens to vault |
+| MORPHO (with borrow) | ERC20_VAULT_BALANCE | Borrow adds tokens to vault |
+| GEARBOX_FARM_DTOKEN_V3 | GEARBOX_POOL_V3 | Farm stakes dTokens from pool |
+| FLUID_INSTADAPP_STAKING | FLUID_INSTADAPP_POOL | Staking uses pool tokens |
+| AERODROME gauge (30) | AERODROME liquidity | Gauge stakes LP tokens |
+| AERODROME_SLIPSTREAM gauge (33) | AERODROME_SLIPSTREAM pool | Gauge stakes CL positions |
+| VELODROME_SUPERCHAIN gauge (31) | VELODROME_SUPERCHAIN pool | Gauge stakes LP tokens |
+| VELODROME_SUPERCHAIN_SLIPSTREAM gauge (32) | VELODROME_SUPERCHAIN_SLIPSTREAM pool | Gauge stakes CL positions |
+| BALANCER gauge (36) | BALANCER pool (36) | Gauge stakes BPT tokens (lp_token()) |
 | STAKE_DAO_V2 (34) | (price oracle dependency) | Nested ERC4626: reward vault → LP vault → underlying |
-| SILO_V2 (35) | (none - self-contained) | Wewnetrzna ksiegowosc przez SiloConfig |
-| NAPIER (46) | (brak balance fuse!) | Brak balance fuse w kodzie - wymaga custom tracking |
-| Dowolny swap market | ERC20_VAULT_BALANCE | Swap zmienia balance w vaulcie |
+| SILO_V2 (35) | (none - self-contained) | Internal bookkeeping via SiloConfig |
+| NAPIER (46) | (no balance fuse!) | No balance fuse in code - requires custom tracking |
+| Any swap market | ERC20_VAULT_BALANCE | Swap changes balance in vault |
 
-> **UWAGA Slipstream**: Velodrome/Aerodrome Slipstream uzywaja FuseStorageLib do tracking NFT position IDs. Max 50 pozycji per substrate (ochrona przed DoS gas exhaustion).
+> **NOTE on Slipstream**: Velodrome/Aerodrome Slipstream use FuseStorageLib for tracking NFT position IDs. Max 50 positions per substrate (protection against DoS gas exhaustion).
 
-> **UWAGA Gauge fees**: Velodrome/Aerodrome POOL positions wliczaja trading fees. GAUGE positions NIE wliczaja fees (ida do veVELO/veAERO voters). Balance fuse uzywa index delta mechanism.
+> **NOTE on Gauge fees**: Velodrome/Aerodrome POOL positions include trading fees. GAUGE positions do NOT include fees (they go to veVELO/veAERO voters). Balance fuse uses index delta mechanism.
 
 ### MI-002: Dependency Graph Completeness
-- **Warunek**: WSZYSTKIE wymagane zaleznosci sa w grafie
-- **Jak sprawdzic**: Dla kazdego marketu sprawdz getDependencyBalanceGraph() i porownaj z tabela powyzej
-- **Oczekiwany wynik**: Kompletny graf zaleznosci
-- **Uwagi**: Brakujaca zaleznosc = phantom balance (vault mysli ze ma wiecej/mniej niz w rzeczywistosci)
+- **Condition**: ALL required dependencies are in the graph
+- **How to check**: For each market check getDependencyBalanceGraph() and compare with the table above
+- **Expected result**: Complete dependency graph
+- **Notes**: Missing dependency = phantom balance (vault thinks it has more/less than reality)
 
 ### MI-003: No Circular Dependencies
-- **Warunek**: Graf zaleznosci nie ma cykli
-- **Jak sprawdzic**: Traverse grafu DFS - sprawdz brak cykli
-- **Oczekiwany wynik**: DAG (directed acyclic graph)
-- **Uwagi**: Cykl = potencjalna nieskonczona petla lub bledne obliczenia
+- **Condition**: Dependency graph has no cycles
+- **How to check**: DFS graph traversal - check for absence of cycles
+- **Expected result**: DAG (directed acyclic graph)
+- **Notes**: Cycle = potential infinite loop or incorrect calculations
 
 ### MI-004: Market Limits - Active Status
-- **Warunek**: Market limits sa aktywne/nieaktywne zgodnie z zamierzeniem
-- **Jak sprawdzic**: `PlasmaVaultGovernance.isMarketsLimitsActivated()`
-- **Oczekiwany wynik**: true jesli vault wymaga limitow koncentracji
-- **Uwagi**: Bez limitow Alpha moze skoncentrowac 100% w jednym markecie
+- **Condition**: Market limits are active/inactive as intended
+- **How to check**: `PlasmaVaultGovernance.isMarketsLimitsActivated()`
+- **Expected result**: true if vault requires concentration limits
+- **Notes**: Without limits Alpha can concentrate 100% in a single market
 
 ### MI-005: Market Limits - Values
-- **Warunek**: Kazdy market ma ustawiony limit procentowy zgodny z strategia
-- **Jak sprawdzic**: `PlasmaVaultGovernance.getMarketLimit(marketId)` dla kazdego marketu
-- **Oczekiwany wynik**: Wartosc w WAD (1e18 = 100%), np. 3e17 = 30%
-- **Uwagi**: Suma limitow moze byc > 100% (limity to max per market, nie alokacja)
+- **Condition**: Each market has a percentage limit set according to strategy
+- **How to check**: `PlasmaVaultGovernance.getMarketLimit(marketId)` for each market
+- **Expected result**: Value in WAD (1e18 = 100%), e.g., 3e17 = 30%
+- **Notes**: Sum of limits can be > 100% (limits are max per market, not allocation)
 
 ### MI-006: Market Limits - Coverage
-- **Warunek**: WSZYSTKIE aktywne markety maja zdefiniowane limity (jesli system jest aktywny)
-- **Jak sprawdzic**: Sprawdz limit dla kazdego aktywnego marketu
-- **Oczekiwany wynik**: Kazdy market ma limit > 0 (lub swiadomie 0 = brak limitu)
-- **Uwagi**: Market bez limitu = brak ochrony przed koncentracja w tym markecie
+- **Condition**: ALL active markets have defined limits (if the system is active)
+- **How to check**: Check limit for each active market
+- **Expected result**: Each market has limit > 0 (or intentionally 0 = no limit)
+- **Notes**: Market without limit = no concentration protection for that market
 
 ---
 
 ## HIGH
 
 ### MI-010: Cross-Market Balance Consistency
-- **Warunek**: Suma totalAssetsInMarket() po wszystkich marketach + vault balance == totalAssets()
-- **Jak sprawdzic**:
+- **Condition**: Sum of totalAssetsInMarket() across all markets + vault balance == totalAssets()
+- **How to check**:
   ```
   sum = 0
   for each marketId in activeMarkets:
       sum += vault.totalAssetsInMarket(marketId)
   sum += ERC20(asset).balanceOf(vault)
-  sum += rewardsManager.balanceOf() (jesli istnieje)
-  assert sum ~= vault.totalAssets() (z tolerancja na rounding)
+  sum += rewardsManager.balanceOf() (if exists)
+  assert sum ~= vault.totalAssets() (with rounding tolerance)
   ```
-- **Oczekiwany wynik**: Rownowaga (z tolerancja +-1 na rounding)
-- **Uwagi**: Niezgodnosc = bledne balance fuses lub brakujace markety
+- **Expected result**: Balance (with tolerance +-1 for rounding)
+- **Notes**: Inconsistency = incorrect balance fuses or missing markets
 
 ### MI-011: Swap Markets Dependencies
-- **Warunek**: Markety swap (Uniswap, Universal Token Swapper, Odos) maja dependency na ERC20_VAULT_BALANCE
-- **Jak sprawdzic**: getDependencyBalanceGraph() zawiera ERC20_VAULT_BALANCE
-- **Oczekiwany wynik**: Zaleznosc istnieje
-- **Uwagi**: Swap zmienia balance tokenow - bez dependency nie bedzie zaktualizowany
+- **Condition**: Swap markets (Uniswap, Universal Token Swapper, Odos) have dependency on ERC20_VAULT_BALANCE
+- **How to check**: getDependencyBalanceGraph() contains ERC20_VAULT_BALANCE
+- **Expected result**: Dependency exists
+- **Notes**: Swap changes token balances - without dependency it won't be updated
 
 ### MI-012: LP Markets Dependencies
-- **Warunek**: Markety LP (Uniswap V3 positions, Curve, Balancer) maja dependencies na tokeny skladowe
-- **Jak sprawdzic**: getDependencyBalanceGraph() zawiera odpowiednie markety
-- **Oczekiwany wynik**: Zaleznosci na skladowe tokeny
-- **Uwagi**: LP pozycja = dwa tokeny, zmiana LP wplywa na oba
+- **Condition**: LP markets (Uniswap V3 positions, Curve, Balancer) have dependencies on constituent tokens
+- **How to check**: getDependencyBalanceGraph() contains appropriate markets
+- **Expected result**: Dependencies on constituent tokens
+- **Notes**: LP position = two tokens, LP change affects both
 
 ### MI-013: Staking/Gauge Dependencies
-- **Warunek**: Markety staking/gauge maja dependency na market z LP tokenem
-- **Jak sprawdzic**: getDependencyBalanceGraph()
-- **Oczekiwany wynik**: Gauge zalezy od odpowiedniego LP pool marketu
-- **Uwagi**: Stake/unstake LP tokena zmienia balance LP market
+- **Condition**: Staking/gauge markets have dependency on the market with the LP token
+- **How to check**: getDependencyBalanceGraph()
+- **Expected result**: Gauge depends on the corresponding LP pool market
+- **Notes**: Stake/unstake of LP token changes LP market balance
 
 ### MI-014: Borrow Market Dependencies
-- **Warunek**: Markety z borrow (Aave, Compound, Morpho, Euler) maja dependency na ERC20_VAULT_BALANCE
-- **Jak sprawdzic**: getDependencyBalanceGraph()
-- **Oczekiwany wynik**: Dependency na ERC20_VAULT_BALANCE
-- **Uwagi**: Borrow przynosi tokeny do vaulta, repay je zabiera
+- **Condition**: Markets with borrow (Aave, Compound, Morpho, Euler) have dependency on ERC20_VAULT_BALANCE
+- **How to check**: getDependencyBalanceGraph()
+- **Expected result**: Dependency on ERC20_VAULT_BALANCE
+- **Notes**: Borrow brings tokens to vault, repay removes them
 
 ### MI-015: Market Limits Sum Reasonability
-- **Warunek**: Suma limitow jest rozsadna dla strategii
-- **Jak sprawdzic**: Zsumuj limity wszystkich marketow
-- **Oczekiwany wynik**: Suma >= 100% (1e18) aby vault mogl w pelni alokowac
-- **Uwagi**: Jesli suma < 100% to vault nie moze w pelni alokowac kapitalu
+- **Condition**: Sum of limits is reasonable for the strategy
+- **How to check**: Sum all market limits
+- **Expected result**: Sum >= 100% (1e18) so vault can fully allocate
+- **Notes**: If sum < 100% the vault cannot fully allocate capital
 
 ---
 
 ## MEDIUM
 
 ### MI-020: Dependency Graph Depth
-- **Warunek**: Glebokosc grafu zaleznosci nie jest nadmiernie duza
-- **Jak sprawdzic**: Zmierz max depth grafu
-- **Oczekiwany wynik**: Depth <= 3-4 (rozsadna zlozonosc)
-- **Uwagi**: Zbyt gleboki graf = wiecej gas na balance updates
+- **Condition**: Dependency graph depth is not excessively large
+- **How to check**: Measure max graph depth
+- **Expected result**: Depth <= 3-4 (reasonable complexity)
+- **Notes**: Too deep graph = more gas for balance updates
 
 ### MI-021: Market Interaction Gas Cost
-- **Warunek**: Execute z wieloma marketami miesci sie w block gas limit
-- **Jak sprawdzic**: Estymacja gas execute() z typowym zestawem actions
-- **Oczekiwany wynik**: Gas < 50% block gas limit
-- **Uwagi**: Zbyt kosztowne execute = Alpha nie moze dzialac
+- **Condition**: Execute with multiple markets fits within block gas limit
+- **How to check**: Estimate gas for execute() with a typical set of actions
+- **Expected result**: Gas < 50% block gas limit
+- **Notes**: Too expensive execute = Alpha cannot operate
 
 ### MI-022: Balance Update After Execute
-- **Warunek**: Po execute() wszystkie dotkniente markety + dependencies sa zaktualizowane
-- **Jak sprawdzic**: Porownaj totalAssetsInMarket() przed i po execute()
-- **Oczekiwany wynik**: Wartosci zaktualizowane prawidlowo
-- **Uwagi**: Test funkcjonalny na produkcji po pierwszych transakcjach
+- **Condition**: After execute() all affected markets + dependencies are updated
+- **How to check**: Compare totalAssetsInMarket() before and after execute()
+- **Expected result**: Values updated correctly
+- **Notes**: Functional test on production after initial transactions

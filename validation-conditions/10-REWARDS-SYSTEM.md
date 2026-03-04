@@ -1,14 +1,14 @@
 # 10 - Rewards System Validation
 
-## Cel
-Weryfikacja systemu nagrod: RewardsClaimManager, reward fuses, vesting, transfers.
+## Purpose
+Verify the rewards system: RewardsClaimManager, reward fuses, vesting, transfers.
 
 ---
 
-## Architektura Rewards
+## Rewards Architecture
 
 ```
-Protokoly (Aave, Morpho, Compound, etc.)
+Protocols (Aave, Morpho, Compound, etc.)
     │ claim rewards
     ▼
 RewardsClaimManager
@@ -18,91 +18,91 @@ RewardsClaimManager
 PlasmaVault (underlying token balance)
 ```
 
-### Proces:
-1. **Claim**: Konto z CLAIM_REWARDS_ROLE wywoluje `claimRewards(FuseAction[])` na vaulcie
-2. Vault delegatecall do reward fuses → fuse claimuje rewards z protokolu do RewardsClaimManager
-3. **Vesting**: Rewards wchodza w linear vesting (configurable duration)
-4. **Transfer**: Vested tokeny sa transferowane do vaulta (updateBalance/transferVestedTokensToVault)
-5. **Include in totalAssets**: Vested balance jest wliczony do vault.totalAssets()
+### Process:
+1. **Claim**: Account with CLAIM_REWARDS_ROLE calls `claimRewards(FuseAction[])` on the vault
+2. Vault delegatecall to reward fuses → fuse claims rewards from the protocol to RewardsClaimManager
+3. **Vesting**: Rewards enter linear vesting (configurable duration)
+4. **Transfer**: Vested tokens are transferred to the vault (updateBalance/transferVestedTokensToVault)
+5. **Include in totalAssets**: Vested balance is included in vault.totalAssets()
 
 ---
 
 ## CRITICAL
 
 ### RW-001: RewardsClaimManager Address
-- **Warunek**: Jesli vault claimuje rewards - RewardsClaimManager jest skonfigurowany
-- **Jak sprawdzic**: `PlasmaVaultGovernance.getRewardsClaimManagerAddress()`
-- **Oczekiwany wynik**: Poprawny adres (nie address(0)) jesli vault uzywa rewards
-- **Uwagi**: Bez managera rewards nie moga byc claimowane i vestowane
+- **Condition**: If vault claims rewards - RewardsClaimManager is configured
+- **How to check**: `PlasmaVaultGovernance.getRewardsClaimManagerAddress()`
+- **Expected result**: Valid address (not address(0)) if vault uses rewards
+- **Notes**: Without the manager, rewards cannot be claimed and vested
 
 ### RW-002: RewardsClaimManager Underlying Token
-- **Warunek**: RewardsClaimManager ma ten sam underlying token co vault
-- **Jak sprawdzic**: Sprawdz underlying token w RewardsClaimManager
-- **Oczekiwany wynik**: Zgodny z `vault.asset()`
-- **Uwagi**: Bledny token = rewards transferowane w zlym tokenie
+- **Condition**: RewardsClaimManager has the same underlying token as the vault
+- **How to check**: Check underlying token in RewardsClaimManager
+- **Expected result**: Matches `vault.asset()`
+- **Notes**: Wrong token = rewards transferred in the wrong token
 
 ### RW-003: RewardsClaimManager -> Vault Connection
-- **Warunek**: RewardsClaimManager jest polaczony z poprawnym vaultem
-- **Jak sprawdzic**: Sprawdz PLASMA_VAULT adres w RewardsClaimManager
-- **Oczekiwany wynik**: Adres aktualnego vaulta
-- **Uwagi**: Bledne polaczenie = rewards ida do zlego vaulta
+- **Condition**: RewardsClaimManager is connected to the correct vault
+- **How to check**: Check PLASMA_VAULT address in RewardsClaimManager
+- **Expected result**: Address of the current vault
+- **Notes**: Wrong connection = rewards go to the wrong vault
 
 ### RW-004: Reward Fuses Registered
-- **Warunek**: Reward fuses sa zarejestrowane w RewardsClaimManager
-- **Jak sprawdzic**: `rewardsClaimManager.getRewardsFuses()`
-- **Oczekiwany wynik**: Lista zawiera wszystkie potrzebne reward fuses
-- **Uwagi**: Niezarejestrowany fuse = claimRewards() zrevertuje
+- **Condition**: Reward fuses are registered in RewardsClaimManager
+- **How to check**: `rewardsClaimManager.getRewardsFuses()`
+- **Expected result**: List contains all required reward fuses
+- **Notes**: Unregistered fuse = claimRewards() will revert
 
 ### RW-005: TECH_REWARDS_CLAIM_MANAGER_ROLE
-- **Warunek**: TECH_REWARDS_CLAIM_MANAGER_ROLE jest przypisana do RewardsClaimManager
-- **Jak sprawdzic**: `AccessManager.hasRole(601, rewardsClaimManagerAddress)`
-- **Oczekiwany wynik**: true
-- **Uwagi**: Bez tej roli manager nie moze operowac
+- **Condition**: TECH_REWARDS_CLAIM_MANAGER_ROLE is assigned to RewardsClaimManager
+- **How to check**: `AccessManager.hasRole(601, rewardsClaimManagerAddress)`
+- **Expected result**: true
+- **Notes**: Without this role the manager cannot operate
 
 ---
 
 ## HIGH
 
 ### RW-010: Vesting Time Configuration
-- **Warunek**: Vesting time jest skonfigurowany sensownie
-- **Jak sprawdzic**: `rewardsClaimManager.getVestingData()`
-- **Oczekiwany wynik**: vestingTime > 1 i rozsadny (np. 7 dni = 604800s, 30 dni = 2592000s)
-- **Uwagi**: Default po deploymencie = 1 sekunda! Musi byc zmieniony przez `setupVestingTime()`. 0 = natychmiastowy vesting; zbyt dlugi = rewards sa zamrozone
+- **Condition**: Vesting time is configured reasonably
+- **How to check**: `rewardsClaimManager.getVestingData()`
+- **Expected result**: vestingTime > 1 and reasonable (e.g., 7 days = 604800s, 30 days = 2592000s)
+- **Notes**: Default after deployment = 1 second! Must be changed via `setupVestingTime()`. 0 = instant vesting; too long = rewards are frozen
 
 ### RW-011: CLAIM_REWARDS_ROLE Assignment
-- **Warunek**: CLAIM_REWARDS_ROLE jest przypisana do oczekiwanego konta (bot/keeper)
-- **Jak sprawdzic**: `AccessManager.hasRole(600, address)`
-- **Oczekiwany wynik**: Oczekiwane konto claimer bota
-- **Uwagi**: Tylko to konto moze claimowac rewards
+- **Condition**: CLAIM_REWARDS_ROLE is assigned to the expected account (bot/keeper)
+- **How to check**: `AccessManager.hasRole(600, address)`
+- **Expected result**: Expected claimer bot account
+- **Notes**: Only this account can claim rewards
 
 ### RW-012: TRANSFER_REWARDS_ROLE Assignment
-- **Warunek**: TRANSFER_REWARDS_ROLE jest przypisana do oczekiwanego konta
-- **Jak sprawdzic**: `AccessManager.hasRole(700, address)`
-- **Oczekiwany wynik**: Oczekiwane konto
-- **Uwagi**: Rola do transferu non-underlying reward tokenow
+- **Condition**: TRANSFER_REWARDS_ROLE is assigned to the expected account
+- **How to check**: `AccessManager.hasRole(700, address)`
+- **Expected result**: Expected account
+- **Notes**: Role for transferring non-underlying reward tokens
 
 ### RW-013: UPDATE_REWARDS_BALANCE_ROLE Assignment
-- **Warunek**: UPDATE_REWARDS_BALANCE_ROLE jest przypisana do oczekiwanego konta
-- **Jak sprawdzic**: `AccessManager.hasRole(1100, address)`
-- **Oczekiwany wynik**: Oczekiwane konto (keeper/bot)
-- **Uwagi**: Potrzebne do aktualizacji balansu rewards w totalAssets
+- **Condition**: UPDATE_REWARDS_BALANCE_ROLE is assigned to the expected account
+- **How to check**: `AccessManager.hasRole(1100, address)`
+- **Expected result**: Expected account (keeper/bot)
+- **Notes**: Needed for updating the rewards balance in totalAssets
 
 ### RW-014: Reward Fuse Protocol Match
-- **Warunek**: Reward fuses odpowiadaja protokolom uzywanym przez vault
-- **Jak sprawdzic**: Porownaj reward fuses z aktywnymi marketami wedlug tabeli:
+- **Condition**: Reward fuses correspond to the protocols used by the vault
+- **How to check**: Compare reward fuses with active markets according to the table:
 
-| Market / Protokol | Wymagany Reward Claim Fuse |
+| Market / Protocol | Required Reward Claim Fuse |
 |-------------------|---------------------------|
-| Aave V3/V3 Lido | (Aave rewards via Merkl lub dedykowany) |
+| Aave V3/V3 Lido | (Aave rewards via Merkl or dedicated) |
 | Compound V3 | CompoundV3ClaimFuse |
 | Morpho | MorphoClaimFuse |
 | Curve gauge | CurveGaugeTokenClaimFuse |
 | Aerodrome | AerodromeGaugeClaimFuse |
 | Aerodrome Slipstream | AreodromeSlipstreamGaugeClaimFuse |
 | Euler V2 | RewardEulerTokenClaimFuse |
-| Fluid Instadapp | FluidInstadappClaimFuse lub FluidProofClaimFuse |
+| Fluid Instadapp | FluidInstadappClaimFuse or FluidProofClaimFuse |
 | Gearbox V3 | GearboxV3FarmDTokenClaimFuse |
-| Merkl (uniwersalny) | MerklClaimFuse |
+| Merkl (universal) | MerklClaimFuse |
 | Moonwell | MoonwellClaimFuse |
 | Ramses | RamsesClaimFuse |
 | Stake DAO V2 | StakeDaoV2ClaimFuse |
@@ -110,33 +110,33 @@ PlasmaVault (underlying token balance)
 | Velodrome Superchain | VelodromeSuperchainGaugeClaimFuse |
 | Velodrome Slipstream | VelodromeSuperchainSlipstreamGaugeClaimFuse |
 
-- **Oczekiwany wynik**: Kazdy market z rewards ma odpowiedni claim fuse
-- **Uwagi**: Brak claim fuse = rewards nie sa claimowane (utrata wartosci). Lacznie 16 typow reward fuse'ow w kodzie
+- **Expected result**: Each market with rewards has a corresponding claim fuse
+- **Notes**: Missing claim fuse = rewards are not claimed (loss of value). 16 types of reward fuses in the codebase total
 
 ### RW-015: Vesting Balance Correctness
-- **Warunek**: balanceOf() w RewardsClaimManager odzwierciedla prawidlowo vested tokens
-- **Jak sprawdzic**: `rewardsClaimManager.balanceOf()`
-- **Oczekiwany wynik**: Wartosc >= 0 i <= total claimed rewards
-- **Uwagi**: Sprawdz formule: `(lastUpdateBalance * elapsed / vestingTime) - transferred`
+- **Condition**: balanceOf() in RewardsClaimManager correctly reflects vested tokens
+- **How to check**: `rewardsClaimManager.balanceOf()`
+- **Expected result**: Value >= 0 and <= total claimed rewards
+- **Notes**: Check formula: `(lastUpdateBalance * elapsed / vestingTime) - transferred`
 
 ---
 
 ## MEDIUM
 
 ### RW-020: Reward Token Handling (non-underlying)
-- **Warunek**: Nagrody w tokenach != underlying (np. COMP, AAVE, CRV) sa prawidlowo handlowane
-- **Jak sprawdzic**: Sprawdz czy istnieje mechanizm konwersji reward tokenow na underlying
-- **Oczekiwany wynik**: Swap fuse lub manual process do konwersji
-- **Uwagi**: Rewards w non-underlying tokenach musza byc skonwertowane
+- **Condition**: Rewards in tokens != underlying (e.g., COMP, AAVE, CRV) are properly handled
+- **How to check**: Check if there is a mechanism to convert reward tokens to underlying
+- **Expected result**: Swap fuse or manual process for conversion
+- **Notes**: Rewards in non-underlying tokens must be converted
 
 ### RW-021: Reward Claim Frequency
-- **Warunek**: Rewards sa claimowane z rozsadna czestotliwoscia
-- **Jak sprawdzic**: Sprawdz eventy claimRewards na produkcji
-- **Oczekiwany wynik**: Regularne claimowanie (np. raz dziennie/tygodniowo)
-- **Uwagi**: Rzadkie claimowanie = strata na compound effect
+- **Condition**: Rewards are claimed with reasonable frequency
+- **How to check**: Check claimRewards events in production
+- **Expected result**: Regular claiming (e.g., daily/weekly)
+- **Notes**: Infrequent claiming = loss of compounding effect
 
 ### RW-022: Merkle Proof Claims (Morpho, etc.)
-- **Warunek**: Dla protokolow z merkle proof claims - proofs sa aktualne
-- **Jak sprawdzic**: Weryfikacja ze claimRewards() z aktualnymi proofs dziala
-- **Oczekiwany wynik**: Claim nie revertuje
-- **Uwagi**: Stare merkle proofs moga byc nieaktualne
+- **Condition**: For protocols with merkle proof claims - proofs are current
+- **How to check**: Verify that claimRewards() with current proofs works
+- **Expected result**: Claim doesn't revert
+- **Notes**: Old merkle proofs may be outdated

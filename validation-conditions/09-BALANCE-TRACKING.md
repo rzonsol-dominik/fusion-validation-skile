@@ -1,39 +1,39 @@
 # 09 - Balance Tracking Validation
 
-## Cel
-Weryfikacja systemu sledzenia balansow: totalAssets, per-market balances, balance fuse correctness.
+## Purpose
+Verify the balance tracking system: totalAssets, per-market balances, balance fuse correctness.
 
 ---
 
-## Formuła totalAssets
+## totalAssets Formula
 
 ```
-totalAssets() = vault.balance (ERC20 underlying w vaulcie)
-              + totalAssetsInAllMarkets (suma po wszystkich marketach)
+totalAssets() = vault.balance (ERC20 underlying in vault)
+              + totalAssetsInAllMarkets (sum across all markets)
               + rewardsClaimManager.balanceOf() (vested rewards)
 ```
 
-### Proces aktualizacji (PlasmaVaultMarketsLib):
-1. Wywolaj `balanceFuse.balanceOf()` → wartosc w USD (18 decimals WAD)
-2. Pobierz cene underlying asset z `IPriceOracleMiddleware`
-3. Konwertuj: `(balance_usd * 10^asset_decimals) / price_usd`
-4. Zaktualizuj delta w `PlasmaVaultLib.getTotalAssetsInMarket(marketId)`
-5. Rozwiaz dependencies (zaktualizuj powiazane markety)
-6. Waliduj market limits (jesli aktywne)
+### Update process (PlasmaVaultMarketsLib):
+1. Call `balanceFuse.balanceOf()` → value in USD (18 decimals WAD)
+2. Fetch underlying asset price from `IPriceOracleMiddleware`
+3. Convert: `(balance_usd * 10^asset_decimals) / price_usd`
+4. Update delta in `PlasmaVaultLib.getTotalAssetsInMarket(marketId)`
+5. Resolve dependencies (update related markets)
+6. Validate market limits (if active)
 
 ---
 
 ## CRITICAL
 
 ### BT-001: totalAssets >= Vault ERC20 Balance
-- **Warunek**: totalAssets nie jest mniejszy niz balance ERC20 underlying w vaulcie
-- **Jak sprawdzic**: `vault.totalAssets()` >= `ERC20(asset).balanceOf(vault)`
-- **Oczekiwany wynik**: totalAssets >= balance (roznica = assety w marketach + rewards)
-- **Uwagi**: totalAssets < balance wskazuje na bledna konfiguracje balance fuses
+- **Condition**: totalAssets is not less than the ERC20 underlying balance in the vault
+- **How to check**: `vault.totalAssets()` >= `ERC20(asset).balanceOf(vault)`
+- **Expected result**: totalAssets >= balance (difference = assets in markets + rewards)
+- **Notes**: totalAssets < balance indicates incorrect balance fuse configuration
 
 ### BT-002: totalAssets Consistency
-- **Warunek**: Suma poszczegolnych skladnikow == totalAssets()
-- **Jak sprawdzic**:
+- **Condition**: Sum of individual components == totalAssets()
+- **How to check**:
   ```
   calculated = ERC20(asset).balanceOf(vault)
   for each marketId in activeMarkets:
@@ -42,101 +42,101 @@ totalAssets() = vault.balance (ERC20 underlying w vaulcie)
       calculated += rewardsManager.balanceOf()
   assert |calculated - vault.totalAssets()| <= rounding_tolerance
   ```
-- **Oczekiwany wynik**: Zgodnosc (tolerancja +-1 na rounding per market)
-- **Uwagi**: Niezgodnosc = cos jest nie tak z balance tracking
+- **Expected result**: Match (tolerance +-1 for rounding per market)
+- **Notes**: Mismatch = something is wrong with balance tracking
 
 ### BT-003: Per-Market Balance vs Protocol State
-- **Warunek**: Kazdy totalAssetsInMarket() odzwierciedla RZECZYWISTY stan na protokole
-- **Jak sprawdzic**: Dla kazdego aktywnego marketu porownaj:
-  - `vault.totalAssetsInMarket(marketId)` (co vault mysli)
-  - Rzeczywisty stan na protokole (np. aToken.balanceOf(vault) na Aave)
-- **Oczekiwany wynik**: Roznica < 0.1% (moze byc drobna roznica z powodu accrued interest)
-- **Uwagi**: Duza roznica = balance fuse jest bledny lub nieaktualny
+- **Condition**: Each totalAssetsInMarket() reflects the ACTUAL state on the protocol
+- **How to check**: For each active market compare:
+  - `vault.totalAssetsInMarket(marketId)` (what vault thinks)
+  - Actual state on the protocol (e.g., aToken.balanceOf(vault) on Aave)
+- **Expected result**: Difference < 0.1% (small difference may exist due to accrued interest)
+- **Notes**: Large difference = balance fuse is incorrect or stale
 
 ### BT-004: Balance Fuse Returns USD in WAD
-- **Warunek**: Balance fuse zwraca wartosc w USD z 18 decimals
-- **Jak sprawdzic**: Wywolaj `balanceFuse.balanceOf()` i sprawdz skale
-- **Oczekiwany wynik**: Wartosc w WAD (np. 1000 USD = 1000 * 1e18)
-- **Uwagi**: Bledna skala = totalAssets bedzie o rzedy wielkosci bledny
+- **Condition**: Balance fuse returns value in USD with 18 decimals
+- **How to check**: Call `balanceFuse.balanceOf()` and check scale
+- **Expected result**: Value in WAD (e.g., 1000 USD = 1000 * 1e18)
+- **Notes**: Incorrect scale = totalAssets will be off by orders of magnitude
 
 ### BT-005: Share Price Reasonability
-- **Warunek**: Cena share (convertToAssets(1e(decimals))) jest rozsadna
-- **Jak sprawdzic**: `vault.convertToAssets(10 ** vault.decimals())`
-- **Oczekiwany wynik**: Wartosc bliska 1 underlying tokena (z akumulacja zysku w czasie)
-- **Uwagi**: Cena share radykalnie != 1 (np. 0 lub 1e30) wskazuje na problem
+- **Condition**: Share price (convertToAssets(1e(decimals))) is reasonable
+- **How to check**: `vault.convertToAssets(10 ** vault.decimals())`
+- **Expected result**: Value close to 1 underlying token (with profit accumulation over time)
+- **Notes**: Share price radically != 1 (e.g., 0 or 1e30) indicates a problem
 
 ---
 
 ## HIGH
 
 ### BT-010: Balance Update Freshness
-- **Warunek**: Balansy marketow sa regularnie aktualizowane
-- **Jak sprawdzic**: Sprawdz eventy MarketBalancesUpdated lub porownaj z on-chain state
-- **Oczekiwany wynik**: Balansy zaktualizowane w ciagu ostatnich 24h (lub czesciej)
-- **Uwagi**: Stale balansy = bledna wycena sharesow
+- **Condition**: Market balances are regularly updated
+- **How to check**: Check MarketBalancesUpdated events or compare with on-chain state
+- **Expected result**: Balances updated within the last 24h (or more frequently)
+- **Notes**: Stale balances = incorrect share valuation
 
 ### BT-011: Balance After Execute
-- **Warunek**: Po execute() balansy dotkientych marketow sa zaktualizowane
-- **Jak sprawdzic**: Monitoruj eventy ExecuteFinished
-- **Oczekiwany wynik**: Eventy zawieraja zaktualizowane wartosci
-- **Uwagi**: Automatycznie realizowane w execute()
+- **Condition**: After execute() balances of affected markets are updated
+- **How to check**: Monitor ExecuteFinished events
+- **Expected result**: Events contain updated values
+- **Notes**: Automatically performed in execute()
 
 ### BT-012: Performance Fee Calculation Basis
-- **Warunek**: Performance fee jest obliczana na bazie NET total assets (po odjieciu management fee)
-- **Jak sprawdzic**: Logika w execute():
+- **Condition**: Performance fee is calculated on NET total assets (after deducting management fee)
+- **How to check**: Logic in execute():
   ```
   netTotalAssets = totalAssets() - getUnrealizedManagementFee()
   // ... execute actions ...
   profit = newNetTotalAssets - netTotalAssets
   fee = profit * performanceFeeRate
   ```
-- **Oczekiwany wynik**: Fee only on net profit
-- **Uwagi**: Wbudowane w kontrakt
+- **Expected result**: Fee only on net profit
+- **Notes**: Built into the contract
 
 ### BT-013: Rewards Balance Inclusion
-- **Warunek**: Jesli RewardsClaimManager istnieje - jego balance jest wliczony do totalAssets
-- **Jak sprawdzic**: `rewardsClaimManager.balanceOf()` > 0 gdy sa vested rewards
-- **Oczekiwany wynik**: Wartosci rewards sa wliczone
-- **Uwagi**: Brak wliczenia = niedoszacowanie totalAssets
+- **Condition**: If RewardsClaimManager exists - its balance is included in totalAssets
+- **How to check**: `rewardsClaimManager.balanceOf()` > 0 when there are vested rewards
+- **Expected result**: Rewards values are included
+- **Notes**: Not including them = totalAssets underestimation
 
 ### BT-014: Zero Balance Markets
-- **Warunek**: Markety z balance 0 nie znieksztalcaja totalAssets
-- **Jak sprawdzic**: Sprawdz czy totalAssetsInMarket() == 0 dla nieuzywanych marketow
-- **Oczekiwany wynik**: 0 dla kazdego marketu bez pozycji
-- **Uwagi**: Phantom balance = zawyzona wycena
+- **Condition**: Markets with balance 0 don't distort totalAssets
+- **How to check**: Check that totalAssetsInMarket() == 0 for unused markets
+- **Expected result**: 0 for each market without positions
+- **Notes**: Phantom balance = overvaluation
 
 ### BT-015: Negative Balance Handling (Borrow)
-- **Warunek**: Markety z borrow poprawnie odejmuja debt od supply
-- **Jak sprawdzic**: Dla marketow lending z borrow (Aave, Compound, Morpho):
-  - Balance fuse powinien zwracac: supply_value - debt_value
-  - Jesli net < 0 (wiecej borrowed niz supplied) - sprawdz czy to zamierzone
-- **Oczekiwany wynik**: Balance = net position (supply - debt) w USD
-- **Uwagi**: Bledne odejmowanie debt = zawyzona wycena
+- **Condition**: Markets with borrow correctly deduct debt from supply
+- **How to check**: For lending markets with borrow (Aave, Compound, Morpho):
+  - Balance fuse should return: supply_value - debt_value
+  - If net < 0 (more borrowed than supplied) - check if this is intended
+- **Expected result**: Balance = net position (supply - debt) in USD
+- **Notes**: Incorrect debt deduction = overvaluation
 
 ---
 
 ## MEDIUM
 
 ### BT-020: Rounding Behavior
-- **Warunek**: Rounding w konwersjach jest w wlasciwym kierunku
-- **Jak sprawdzic**: Sprawdz czy vault zaokragla na korzysc vaulta (nie usera) przy withdraw
-- **Oczekiwany wynik**: Shares rounded up, assets rounded down przy withdraw
-- **Uwagi**: ERC4626 standard wymaga roundowania na korzysc vaulta
+- **Condition**: Rounding in conversions favors the correct direction
+- **How to check**: Check that vault rounds in vault's favor (not user's) on withdraw
+- **Expected result**: Shares rounded up, assets rounded down on withdraw
+- **Notes**: ERC4626 standard requires rounding in vault's favor
 
 ### BT-021: updateMarketsBalances Permission
-- **Warunek**: updateMarketsBalances() jest dostepne dla UPDATE_MARKETS_BALANCES_ROLE
-- **Jak sprawdzic**: Sprawdz function-role mapping w AccessManager
-- **Oczekiwany wynik**: Poprawna rola
-- **Uwagi**: Potrzebne do recznej aktualizacji balansow
+- **Condition**: updateMarketsBalances() is available to UPDATE_MARKETS_BALANCES_ROLE
+- **How to check**: Check function-role mapping in AccessManager
+- **Expected result**: Correct role
+- **Notes**: Needed for manual balance updates
 
 ### BT-022: Interest Accrual Tracking
-- **Warunek**: Balance fuses uwzgledniaja narosly interest (aTokens, cTokens)
-- **Jak sprawdzic**: Porownaj balance fuse output z aktualnymi aToken/cToken balansami
-- **Oczekiwany wynik**: Balance rosi z czasem (interest accrual)
-- **Uwagi**: Niektorzy protokoly naliczaja interest dynamicznie
+- **Condition**: Balance fuses account for accrued interest (aTokens, cTokens)
+- **How to check**: Compare balance fuse output with current aToken/cToken balances
+- **Expected result**: Balance grows over time (interest accrual)
+- **Notes**: Some protocols accrue interest dynamically
 
 ### BT-023: LP Position Valuation
-- **Warunek**: LP pozycje (Uniswap V3, Balancer, Curve) sa poprawnie wyceniane
-- **Jak sprawdzic**: Porownaj balance fuse output z wartoscia pozycji na DEX
-- **Oczekiwany wynik**: Wartosc zblizona do rzeczywistej (z uwzglednieniem fees, IL)
-- **Uwagi**: LP valuation jest zlozna - moze byc niedoszacowana o uncollected fees
+- **Condition**: LP positions (Uniswap V3, Balancer, Curve) are correctly valued
+- **How to check**: Compare balance fuse output with position value on DEX
+- **Expected result**: Value close to actual (accounting for fees, IL)
+- **Notes**: LP valuation is complex - may be undervalued by uncollected fees

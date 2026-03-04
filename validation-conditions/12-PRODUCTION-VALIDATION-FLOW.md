@@ -1,17 +1,17 @@
 # 12 - Production Validation Flow
 
-## Cel
-Kolejnosc walidacji na produkcji. Krok po kroku jak sprawdzic vault.
+## Purpose
+Production validation sequence. Step-by-step guide to verify a vault.
 
 ---
 
-## FAZA 1: Identyfikacja Vaulta
+## PHASE 1: Vault Identification
 
 ```
-INPUT: Adres PlasmaVault na produkcji
+INPUT: PlasmaVault address in production
 ```
 
-### Krok 1.1: Podstawowe dane
+### Step 1.1: Basic data
 ```
 vault.asset()                     → underlying token
 vault.name()                      → share token name
@@ -21,26 +21,26 @@ vault.totalSupply()               → total shares
 vault.totalAssets()               → total assets under management
 ```
 
-### Krok 1.2: Kluczowe adresy
+### Step 1.2: Key addresses
 ```
 PlasmaVaultGovernance.getAccessManagerAddress()      → AccessManager
 PlasmaVaultGovernance.getPriceOracleMiddleware()      → PriceOracle
 PlasmaVaultGovernance.getRewardsClaimManagerAddress() → RewardsClaimManager
-WithdrawManager address (z vault storage)             → WithdrawManager
+WithdrawManager address (from vault storage)          → WithdrawManager
 Implementation slot read                              → Implementation contract
-PlasmaVaultBase address (z vault storage)             → Base extension
+PlasmaVaultBase address (from vault storage)          → Base extension
 ```
 
 ---
 
-## FAZA 2: Access Control (02-ACCESS-CONTROL.md)
+## PHASE 2: Access Control (02-ACCESS-CONTROL.md)
 
-### Krok 2.1: Role krytyczne
+### Step 2.1: Critical roles
 ```
-Dla kazdej roli z tabeli:
+For each role in the table:
   AccessManager.hasRole(roleId, expectedAddress) → true/false
 
-Sprawdz:
+Check:
   - ADMIN_ROLE (0) → multisig
   - OWNER_ROLE (1) → multisig
   - GUARDIAN_ROLE (2) → emergency responder
@@ -49,37 +49,37 @@ Sprawdz:
   - TECH_PLASMA_VAULT_ROLE (3) → only vault
 ```
 
-### Krok 2.2: Function mappings
+### Step 2.2: Function mappings
 ```
-Dla kazdej publicznej funkcji vaulta:
+For each public vault function:
   AccessManager.getTargetFunctionRole(vault, selector) → roleId
-  Porownaj z oczekiwana rola
+  Compare with expected role
 ```
 
-### Krok 2.3: Vault status
+### Step 2.3: Vault status
 ```
-AccessManager.isTargetClosed(vault) → false (jesli aktywny)
+AccessManager.isTargetClosed(vault) → false (if active)
 ```
 
-### Krok 2.4: Redemption Delay
+### Step 2.4: Redemption Delay
 ```
 AccessManager.REDEMPTION_DELAY_IN_SECONDS() → uint256
-Sprawdz: > 0 i <= 604800 (7 dni max)
-Chroni przed sandwich attacks deposit-withdraw
+Check: > 0 and <= 604800 (7 days max)
+Protects against deposit-withdraw sandwich attacks
 ```
 
 ---
 
-## FAZA 3: Konfiguracja Marketow (03-MARKET-CONFIGURATION.md)
+## PHASE 3: Market Configuration (03-MARKET-CONFIGURATION.md)
 
-### Krok 3.1: Lista aktywnych marketow
+### Step 3.1: Active markets list
 ```
 PlasmaVaultGovernance.getActiveMarketsInBalanceFuses() → uint256[]
 ```
 
-### Krok 3.2: Per market validation
+### Step 3.2: Per market validation
 ```
-Dla kazdego marketId z listy:
+For each marketId in list:
 
   a) Balance fuse:
      PlasmaVaultGovernance.isBalanceFuseSupported(marketId, fuseAddr) → true
@@ -87,93 +87,93 @@ Dla kazdego marketId z listy:
 
   b) Substrates:
      PlasmaVaultGovernance.getMarketSubstrates(marketId) → bytes32[]
-     Dekoduj i sprawdz poprawnosc adresow/ID
+     Decode and verify address/ID correctness
 
   c) Market balance:
      vault.totalAssetsInMarket(marketId) → uint256
 ```
 
-### Krok 3.3: Lista fuse'ow
+### Step 3.3: Fuses list
 ```
 PlasmaVaultGovernance.getFuses() → address[]
-Dla kazdego fuse:
+For each fuse:
   IFuseCommon(fuse).MARKET_ID() → marketId
-  Sprawdz ze market jest aktywny
+  Verify market is active
 ```
 
 ---
 
-## FAZA 4: Interakcje Miedzy Marketami (04-MARKET-INTERACTIONS.md)
+## PHASE 4: Inter-Market Interactions (04-MARKET-INTERACTIONS.md)
 
-### Krok 4.1: Dependency graph
+### Step 4.1: Dependency graph
 ```
-Dla kazdego aktywnego marketId:
+For each active marketId:
   PlasmaVaultGovernance.getDependencyBalanceGraph(marketId) → uint256[]
-  Sprawdz kompletnosc (tabela zaleznosci w 04-MARKET-INTERACTIONS.md)
+  Check completeness (dependency table in 04-MARKET-INTERACTIONS.md)
 ```
 
-### Krok 4.2: Market limits
+### Step 4.2: Market limits
 ```
 PlasmaVaultGovernance.isMarketsLimitsActivated() → bool
 
-Jesli true:
-  Dla kazdego marketId:
+If true:
+  For each marketId:
     PlasmaVaultGovernance.getMarketLimit(marketId) → uint256 (WAD)
 ```
 
 ---
 
-## FAZA 5: Withdrawal System (06-WITHDRAWAL-SYSTEM.md)
+## PHASE 5: Withdrawal System (06-WITHDRAWAL-SYSTEM.md)
 
-### Krok 5.1: Instant withdrawal fuses
+### Step 5.1: Instant withdrawal fuses
 ```
 PlasmaVaultGovernance.getInstantWithdrawalFuses() → address[]
 
-Dla kazdego fuse i index:
+For each fuse and index:
   PlasmaVaultGovernance.getInstantWithdrawalFusesParams(fuse, index) → bytes32[]
-  Sprawdz parametry
+  Verify parameters
 ```
 
-### Krok 5.2: WithdrawManager config
+### Step 5.2: WithdrawManager config
 ```
 WithdrawManager.getWithdrawWindow() → uint256
-Request fee i withdraw fee
+Request fee and withdraw fee
 ```
 
 ---
 
-## FAZA 6: Fee System (07-FEE-SYSTEM.md)
+## PHASE 6: Fee System (07-FEE-SYSTEM.md)
 
-### Krok 6.1: Fee data
+### Step 6.1: Fee data
 ```
 PlasmaVaultGovernance.getPerformanceFeeData() → (feeAccount, feeInPercentage)
 PlasmaVaultGovernance.getManagementFeeData() → (feeAccount, feeInPercentage, lastUpdateTimestamp)
 ```
 
-### Krok 6.2: Fee Manager details
+### Step 6.2: Fee Manager details
 ```
-FeeManager address z fee account
+FeeManager address from fee account
 FeeManager recipients and fee splits
 Total fee <= max
 ```
 
 ---
 
-## FAZA 7: Price Oracle (08-PRICE-ORACLE.md)
+## PHASE 7: Price Oracle (08-PRICE-ORACLE.md)
 
-### Krok 7.1: Oracle test
+### Step 7.1: Oracle test
 ```
-Dla kazdego tokena w substrates:
+For each token in substrates:
   PriceOracleMiddleware.getAssetPrice(token) → (price, decimals)
-  Sprawdz: price > 0, decimals == 18
-  Porownaj z rynkowa cena
+  Check: price > 0, decimals == 18
+  Compare with market price
 ```
 
 ---
 
-## FAZA 8: Balance Tracking (09-BALANCE-TRACKING.md)
+## PHASE 8: Balance Tracking (09-BALANCE-TRACKING.md)
 
-### Krok 8.1: Balance consistency check
+### Step 8.1: Balance consistency check
 ```
 calculated = ERC20(asset).balanceOf(vault)
 for each marketId:
@@ -184,7 +184,7 @@ if rewardsManager != address(0):
 assert |calculated - vault.totalAssets()| <= tolerance
 ```
 
-### Krok 8.2: Share price sanity
+### Step 8.2: Share price sanity
 ```
 vault.convertToAssets(10 ** vault.decimals()) → ~1 underlying token
 vault.convertToShares(10 ** assetDecimals) → ~1e(vault.decimals()) shares
@@ -192,9 +192,9 @@ vault.convertToShares(10 ** assetDecimals) → ~1e(vault.decimals()) shares
 
 ---
 
-## FAZA 9: Rewards (10-REWARDS-SYSTEM.md)
+## PHASE 9: Rewards (10-REWARDS-SYSTEM.md)
 
-### Krok 9.1: Rewards config (jesli uzywany)
+### Step 9.1: Rewards config (if used)
 ```
 rewardsManager.getVestingData() → vestingTime, balances
 rewardsManager.getRewardsFuses() → registered fuses
@@ -203,74 +203,74 @@ rewardsManager.balanceOf() → current vested balance
 
 ---
 
-## FAZA 10: Pre-Hooks (01-VAULT-CORE.md VC-025/VC-027)
+## PHASE 10: Pre-Hooks (01-VAULT-CORE.md VC-025/VC-027)
 
-### Krok 10.1: Pre-hooks configuration
+### Step 10.1: Pre-hooks configuration
 ```
-Odczyt pre-hooks mappingu (selector → implementation):
-  - Sprawdz czy wymagane pre-hooks sa skonfigurowane
+Read pre-hooks mapping (selector → implementation):
+  - Check if required pre-hooks are configured
   - PauseFunctionPreHook - emergency pause per-function
-  - ExchangeRateValidatorPreHook - walidacja driftu exchange rate
+  - ExchangeRateValidatorPreHook - exchange rate drift validation
   - UpdateBalancesPreHook / UpdateBalancesIgnoreDustPreHook
   - ValidateAllAssetsPricesPreHook
   - EIP7702DelegateValidationPreHook
 ```
 
-### Krok 10.2: Exchange Rate Validator (jesli uzywany)
+### Step 10.2: Exchange Rate Validator (if used)
 ```
-Odczyt substrates pre-hook dla ExchangeRateValidator:
-  - threshold zgodny z oczekiwana zmiennoscia (np. 1-5%)
-  - Za ciasny = blokuje normalne operacje
-  - Za luzny = brak ochrony
-```
-
----
-
-## FAZA 10b: Dodatkowe warunki Vault Core (01-VAULT-CORE.md VC-028/VC-029)
-
-### Krok 10b.1: ERC721 Receiver (jesli vault uzywa NFT pozycji)
-```
-Jesli vault uzywa Uniswap V3, Ramses V2 lub Slipstream:
-  vault.onERC721Received(address,address,uint256,bytes) → powinno zwrocic selektor
-```
-
-### Krok 10b.2: WithdrawManager initialization
-```
-WithdrawManager.getPlasmaVaultAddress() → adres vaulta
-Sprawdz ze jest poprawny
+Read substrates pre-hook for ExchangeRateValidator:
+  - threshold consistent with expected volatility (e.g., 1-5%)
+  - Too tight = blocks normal operations
+  - Too loose = no protection
 ```
 
 ---
 
-## FAZA 11: Smoke Test (opcjonalny)
+## PHASE 10b: Additional Vault Core Conditions (01-VAULT-CORE.md VC-028/VC-029)
 
-### Krok 11.1: Test deposit
+### Step 10b.1: ERC721 Receiver (if vault uses NFT positions)
+```
+If vault uses Uniswap V3, Ramses V2, or Slipstream:
+  vault.onERC721Received(address,address,uint256,bytes) → should return selector
+```
+
+### Step 10b.2: WithdrawManager initialization
+```
+WithdrawManager.getPlasmaVaultAddress() → vault address
+Verify it is correct
+```
+
+---
+
+## PHASE 11: Smoke Test (optional)
+
+### Step 11.1: Test deposit
 ```
 1. Approve underlying token to vault
 2. vault.deposit(smallAmount, testAddress)
-3. Sprawdz: shares received > 0
+3. Check: shares received > 0
 4. vault.totalAssets() increased
 ```
 
-### Krok 11.2: Test withdraw
+### Step 11.2: Test withdraw
 ```
 1. vault.withdraw(smallAmount, testAddress, testAddress)
-2. Sprawdz: underlying received
+2. Check: underlying received
 3. vault.totalAssets() decreased
 ```
 
-### Krok 11.3: Test execute (wymaga ALPHA_ROLE)
+### Step 11.3: Test execute (requires ALPHA_ROLE)
 ```
-1. Przygotuj FuseAction dla najprostszego marketu
+1. Prepare FuseAction for the simplest market
 2. vault.execute([action])
-3. Sprawdz: totalAssetsInMarket() updated
+3. Check: totalAssetsInMarket() updated
 ```
 
 ---
 
-## RAPORT KONCOWY
+## FINAL REPORT
 
-Po zakonczeniu walidacji stworz raport:
+After completing validation, create a report:
 
 ```
 # Vault Validation Report
@@ -301,18 +301,18 @@ Po zakonczeniu walidacji stworz raport:
 
 ---
 
-## AUTOMATYZACJA
+## AUTOMATION
 
-Mozliwe jest napisanie skryptu ktory automatycznie sprawdza wiekszosc warunkow:
+It is possible to write a script that automatically checks most conditions:
 
-### Wymagane RPC calls:
-- ~15 wywolan na faze 1-2 (wliczajac redemption delay)
-- ~5 * N wywolan na faze 3 (N = liczba marketow)
-- ~3 * M wywolan na faze 5 (M = liczba withdrawal fuses)
-- ~K wywolan na faze 7 (K = liczba unikalnych tokenow)
-- ~P wywolan na faze 10 (P = liczba pre-hooks)
+### Required RPC calls:
+- ~15 calls for phases 1-2 (including redemption delay)
+- ~5 * N calls for phase 3 (N = number of markets)
+- ~3 * M calls for phase 5 (M = number of withdrawal fuses)
+- ~K calls for phase 7 (K = number of unique tokens)
+- ~P calls for phase 10 (P = number of pre-hooks)
 
-### Narzedzia:
-- cast (foundry) do on-chain calls
-- Etherscan/Basescan API do weryfikacji kodu
-- Custom skrypt w Solidity/Python/TypeScript
+### Tools:
+- cast (foundry) for on-chain calls
+- Etherscan/Basescan API for code verification
+- Custom script in Solidity/Python/TypeScript

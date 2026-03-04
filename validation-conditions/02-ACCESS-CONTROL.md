@@ -1,106 +1,106 @@
 # 02 - Access Control Validation
 
-## Cel
-Weryfikacja systemu rol, uprawnien i hierarchii w IporFusionAccessManager.
+## Purpose
+Verify the role system, permissions, and hierarchy in IporFusionAccessManager.
 
 ---
 
-## Definicje Rol
+## Role Definitions
 
-| Role ID | Nazwa | Opis | Admin Role |
-|---------|-------|------|------------|
-| 0 | ADMIN_ROLE | Najwyzszy admin - zarzadza wszystkimi rolami | - |
-| 1 | OWNER_ROLE | Zarzadza Guardian/Atomist/Owner | ADMIN |
+| Role ID | Name | Description | Admin Role |
+|---------|------|-------------|------------|
+| 0 | ADMIN_ROLE | Highest admin - manages all roles | - |
+| 1 | OWNER_ROLE | Manages Guardian/Atomist/Owner | ADMIN |
 | 2 | GUARDIAN_ROLE | Emergency pause/cancel | OWNER |
-| 3 | TECH_PLASMA_VAULT_ROLE | Systemowa rola PlasmaVault | ADMIN |
-| 4 | IPOR_DAO_ROLE | Operacje DAO | self (4) |
-| 5 | TECH_CONTEXT_MANAGER_ROLE | Dostep ContextManager | self (5) |
-| 6 | TECH_WITHDRAW_MANAGER_ROLE | Dostep WithdrawManager | ADMIN |
-| 7 | TECH_VAULT_TRANSFER_SHARES_ROLE | Kontrola transferu shares | ADMIN |
-| 100 | ATOMIST_ROLE | Zarzadzanie vaultem | OWNER |
-| 200 | ALPHA_ROLE | Wykonywanie fuse actions | ATOMIST |
-| 300 | FUSE_MANAGER_ROLE | Dodawanie/usuwanie fuses | ATOMIST |
-| 301 | PRE_HOOKS_MANAGER_ROLE | Zarzadzanie pre-hooks | OWNER |
+| 3 | TECH_PLASMA_VAULT_ROLE | PlasmaVault system role | ADMIN |
+| 4 | IPOR_DAO_ROLE | DAO operations | self (4) |
+| 5 | TECH_CONTEXT_MANAGER_ROLE | ContextManager access | self (5) |
+| 6 | TECH_WITHDRAW_MANAGER_ROLE | WithdrawManager access | ADMIN |
+| 7 | TECH_VAULT_TRANSFER_SHARES_ROLE | Share transfer control | ADMIN |
+| 100 | ATOMIST_ROLE | Vault management | OWNER |
+| 200 | ALPHA_ROLE | Execute fuse actions | ATOMIST |
+| 300 | FUSE_MANAGER_ROLE | Add/remove fuses | ATOMIST |
+| 301 | PRE_HOOKS_MANAGER_ROLE | Pre-hooks management | OWNER |
 | 400 | TECH_PERFORMANCE_FEE_MANAGER_ROLE | Performance fee | self (400) |
 | 500 | TECH_MANAGEMENT_FEE_MANAGER_ROLE | Management fee | self (500) |
-| 600 | CLAIM_REWARDS_ROLE | Claimowanie nagrod | ATOMIST |
-| 601 | TECH_REWARDS_CLAIM_MANAGER_ROLE | System rewards | ADMIN |
-| 700 | TRANSFER_REWARDS_ROLE | Transfer nagrod | ATOMIST |
-| 800 | WHITELIST_ROLE | Deposit/withdraw (prywatny vault) | ATOMIST |
-| 900 | CONFIG_INSTANT_WITHDRAWAL_FUSES_ROLE | Konfiguracja instant withdrawal | ATOMIST |
-| 901 | WITHDRAW_MANAGER_REQUEST_FEE_ROLE | Konfiguracja request fee | ATOMIST |
-| 902 | WITHDRAW_MANAGER_WITHDRAW_FEE_ROLE | Konfiguracja withdraw fee | ATOMIST |
-| 1000 | UPDATE_MARKETS_BALANCES_ROLE | Aktualizacja balansow marketow | ATOMIST |
-| 1100 | UPDATE_REWARDS_BALANCE_ROLE | Aktualizacja balansu nagrod | ATOMIST |
-| 1200 | PRICE_ORACLE_MIDDLEWARE_MANAGER_ROLE | Zarzadzanie oracle | ATOMIST |
-| MAX | PUBLIC_ROLE | Brak ograniczen | - |
+| 600 | CLAIM_REWARDS_ROLE | Claiming rewards | ATOMIST |
+| 601 | TECH_REWARDS_CLAIM_MANAGER_ROLE | Rewards system | ADMIN |
+| 700 | TRANSFER_REWARDS_ROLE | Reward transfers | ATOMIST |
+| 800 | WHITELIST_ROLE | Deposit/withdraw (private vault) | ATOMIST |
+| 900 | CONFIG_INSTANT_WITHDRAWAL_FUSES_ROLE | Instant withdrawal configuration | ATOMIST |
+| 901 | WITHDRAW_MANAGER_REQUEST_FEE_ROLE | Request fee configuration | ATOMIST |
+| 902 | WITHDRAW_MANAGER_WITHDRAW_FEE_ROLE | Withdraw fee configuration | ATOMIST |
+| 1000 | UPDATE_MARKETS_BALANCES_ROLE | Market balance updates | ATOMIST |
+| 1100 | UPDATE_REWARDS_BALANCE_ROLE | Rewards balance updates | ATOMIST |
+| 1200 | PRICE_ORACLE_MIDDLEWARE_MANAGER_ROLE | Oracle management | ATOMIST |
+| MAX | PUBLIC_ROLE | No restrictions | - |
 
 ---
 
 ## CRITICAL
 
 ### AC-001: ADMIN_ROLE Assignment
-- **Warunek**: ADMIN_ROLE jest przypisany do oczekiwanego adresu (multisig/DAO)
-- **Jak sprawdzic**: `AccessManager.hasRole(0, address)` dla oczekiwanego admina
-- **Oczekiwany wynik**: true
-- **Uwagi**: KRYTYCZNE - admin moze zmienic WSZYSTKIE role. Musi byc multisig!
+- **Condition**: ADMIN_ROLE is assigned to the expected address (multisig/DAO)
+- **How to check**: `AccessManager.hasRole(0, address)` for the expected admin
+- **Expected result**: true
+- **Notes**: CRITICAL - admin can change ALL roles. Must be a multisig!
 
-### AC-002: ADMIN_ROLE - brak nieautoryzowanych
-- **Warunek**: ADMIN_ROLE NIE jest przypisany do ZADNEGO adresu na produkcji
-- **Jak sprawdzic**: Sprawdz logi `RoleGranted` i `RoleRevoked` dla roleId=0. Sprawdz czy po inicjalizacji ADMIN_ROLE zostal odwolany
-- **Oczekiwany wynik**: **ZERO holderow ADMIN_ROLE** - docelowo zaden adres nie powinien posiadac ADMIN_ROLE
-- **Uwagi**: CRITICAL - Jakikolwiek adres z ADMIN_ROLE na produkcji to sytuacja niepozadana i musi byc zgloszona jako CRITICAL. ADMIN moze zmienic WSZYSTKIE role, wlacznie z TECH_*, co daje pelna kontrole nad vaultem
+### AC-002: ADMIN_ROLE - No Unauthorized Holders
+- **Condition**: ADMIN_ROLE is NOT assigned to ANY address in production
+- **How to check**: Check `RoleGranted` and `RoleRevoked` logs for roleId=0. Verify that after initialization ADMIN_ROLE was revoked
+- **Expected result**: **ZERO ADMIN_ROLE holders** - ultimately no address should hold ADMIN_ROLE
+- **Notes**: CRITICAL - Any address with ADMIN_ROLE in production is undesirable and must be reported as CRITICAL. ADMIN can change ALL roles, including TECH_*, giving full control over the vault
 
 ### AC-003: OWNER_ROLE Assignment
-- **Warunek**: OWNER_ROLE jest przypisany do wlasciwych adresow
-- **Jak sprawdzic**: `AccessManager.hasRole(1, address)`
-- **Oczekiwany wynik**: Tylko oczekiwane adresy (multisig)
-- **Uwagi**: Owner moze zarzadzac Guardian, Atomist
+- **Condition**: OWNER_ROLE is assigned to the correct addresses
+- **How to check**: `AccessManager.hasRole(1, address)`
+- **Expected result**: Only expected addresses (multisig)
+- **Notes**: Owner can manage Guardian, Atomist
 
 ### AC-004: ATOMIST_ROLE Assignment
-- **Warunek**: ATOMIST_ROLE jest przypisany do oczekiwanych adresow
-- **Jak sprawdzic**: `AccessManager.hasRole(100, address)`
-- **Oczekiwany wynik**: Oczekiwane adresy atomistow
-- **Uwagi**: Atomist kontroluje konfiguracje vaulta
+- **Condition**: ATOMIST_ROLE is assigned to the expected addresses
+- **How to check**: `AccessManager.hasRole(100, address)`
+- **Expected result**: Expected atomist addresses
+- **Notes**: Atomist controls vault configuration
 
 ### AC-005: ALPHA_ROLE Assignment
-- **Warunek**: ALPHA_ROLE jest przypisany do oczekiwanych adresow (boty/strategie)
-- **Jak sprawdzic**: `AccessManager.hasRole(200, address)`
-- **Oczekiwany wynik**: Oczekiwane adresy alpha executors
-- **Uwagi**: Alpha moze wykonywac dowolne fuse actions - musi byc zaufany
+- **Condition**: ALPHA_ROLE is assigned to the expected addresses (bots/strategies)
+- **How to check**: `AccessManager.hasRole(200, address)`
+- **Expected result**: Expected alpha executor addresses
+- **Notes**: Alpha can execute any fuse actions - must be trusted
 
 ### AC-005b: Role Separation (AC-001 - AC-005)
-- **Warunek**: Zaden adres NIE posiada wiecej niz jednej roli sposrod: ADMIN_ROLE, OWNER_ROLE, GUARDIAN_ROLE, ATOMIST_ROLE, ALPHA_ROLE
-- **Jak sprawdzic**: Dla kazdego holdera rol AC-001-AC-005 sprawdz czy nie posiada zadnej innej roli z tej grupy
-- **Oczekiwany wynik**: Kazdy adres ma dokladnie 1 role (lub 0 w przypadku ADMIN)
-- **Uwagi**: CRITICAL - Laczenie rol lamie zasade separation of concerns i umozliwia eskalacje uprawnien. Np. adres z OWNER+ALPHA moze sam sobie nadac role i wykonywac operacje
+- **Condition**: No address holds more than one role among: ADMIN_ROLE, OWNER_ROLE, GUARDIAN_ROLE, ATOMIST_ROLE, ALPHA_ROLE
+- **How to check**: For each role holder from AC-001-AC-005, verify they don't hold any other role from this group
+- **Expected result**: Each address has exactly 1 role (or 0 in the case of ADMIN)
+- **Notes**: CRITICAL - Combining roles violates separation of concerns and enables privilege escalation. E.g., an address with OWNER+ALPHA can grant itself roles and execute operations
 
 ### AC-006: TECH_PLASMA_VAULT_ROLE
-- **Warunek**: TECH_PLASMA_VAULT_ROLE jest przypisany TYLKO do adresu PlasmaVault
-- **Jak sprawdzic**: `AccessManager.hasRole(3, vaultAddress)` + sprawdz logi
-- **Oczekiwany wynik**: Tylko vault ma te role
-- **Uwagi**: Rola systemowa - nie powinna byc przypisana do zadnego innego adresu
+- **Condition**: TECH_PLASMA_VAULT_ROLE is assigned ONLY to the PlasmaVault address
+- **How to check**: `AccessManager.hasRole(3, vaultAddress)` + check logs
+- **Expected result**: Only the vault has this role
+- **Notes**: System role - should not be assigned to any other address
 
 ### AC-007: GUARDIAN_ROLE Assignment
-- **Warunek**: GUARDIAN_ROLE jest przypisany do oczekiwanego adresu
-- **Jak sprawdzic**: `AccessManager.hasRole(2, address)`
-- **Oczekiwany wynik**: Oczekiwany guardian (moze byc multisig lub EOA do szybkiego reagowania)
-- **Uwagi**: Guardian moze pauzoowac vault - wazne na emergency
+- **Condition**: GUARDIAN_ROLE is assigned to the expected address
+- **How to check**: `AccessManager.hasRole(2, address)`
+- **Expected result**: Expected guardian (may be multisig or EOA for fast response)
+- **Notes**: Guardian can pause the vault - important for emergencies
 
 ### AC-008: Function-Role Mappings
-- **Warunek**: Kazda funkcja vaulta ma przypisana poprawna role w AccessManager
-- **Jak sprawdzic**: `AccessManager.getTargetFunctionRole(vault, selector)` dla kazdego selektora
-- **Oczekiwany wynik**: Mappingi zgodne z tabelka ponizej
-- **Uwagi**: Bledne mapowanie = nieautoryzowany dostep
+- **Condition**: Each vault function has the correct role assigned in AccessManager
+- **How to check**: `AccessManager.getTargetFunctionRole(vault, selector)` for each selector
+- **Expected result**: Mappings match the table below
+- **Notes**: Incorrect mapping = unauthorized access
 
-#### Wymagane mappingi funkcji:
+#### Required function mappings:
 
-| Funkcja | Oczekiwana rola |
-|---------|-----------------|
+| Function | Expected Role |
+|----------|---------------|
 | `execute(FuseAction[])` | ALPHA_ROLE (200) |
-| `deposit(uint256,address)` | WHITELIST_ROLE (800) lub PUBLIC_ROLE (zalezy od isPublic) |
-| `mint(uint256,address)` | WHITELIST_ROLE (800) lub PUBLIC_ROLE (zalezy od isPublic) |
-| `depositWithPermit(...)` | WHITELIST_ROLE (800) lub PUBLIC_ROLE (zalezy od isPublic) |
+| `deposit(uint256,address)` | WHITELIST_ROLE (800) or PUBLIC_ROLE (depends on isPublic) |
+| `mint(uint256,address)` | WHITELIST_ROLE (800) or PUBLIC_ROLE (depends on isPublic) |
+| `depositWithPermit(...)` | WHITELIST_ROLE (800) or PUBLIC_ROLE (depends on isPublic) |
 | `withdraw(uint256,address,address)` | PUBLIC_ROLE |
 | `redeem(uint256,address,address)` | PUBLIC_ROLE |
 | `redeemFromRequest(...)` | PUBLIC_ROLE |
@@ -125,15 +125,15 @@ Weryfikacja systemu rol, uprawnien i hierarchii w IporFusionAccessManager.
 | `configureInstantWithdrawalFuses(...)` | CONFIG_INSTANT_WITHDRAWAL_FUSES_ROLE (900) |
 | `configurePerformanceFee(...)` | TECH_PERFORMANCE_FEE_MANAGER_ROLE (400) |
 | `configureManagementFee(...)` | TECH_MANAGEMENT_FEE_MANAGER_ROLE (500) |
-| `transfer(address,uint256)` | TECH_VAULT_TRANSFER_SHARES_ROLE (7) (domyslnie) lub PUBLIC_ROLE (po enableTransferShares) |
-| `transferFrom(...)` | TECH_VAULT_TRANSFER_SHARES_ROLE (7) (domyslnie) lub PUBLIC_ROLE (po enableTransferShares) |
+| `transfer(address,uint256)` | TECH_VAULT_TRANSFER_SHARES_ROLE (7) (default) or PUBLIC_ROLE (after enableTransferShares) |
+| `transferFrom(...)` | TECH_VAULT_TRANSFER_SHARES_ROLE (7) (default) or PUBLIC_ROLE (after enableTransferShares) |
 | `transferRequestSharesFee(...)` | TECH_WITHDRAW_MANAGER_ROLE (6) |
 | `setMinimalExecutionDelaysForRoles(...)` | OWNER_ROLE (1) |
 
-#### Mappingi na AccessManager (nie vault):
+#### AccessManager mappings (not vault):
 
-| Funkcja | Oczekiwana rola |
-|---------|-----------------|
+| Function | Expected Role |
+|----------|---------------|
 | `AccessManager.initialize(...)` | ADMIN_ROLE (0) |
 | `AccessManager.convertToPublicVault(address)` | TECH_PLASMA_VAULT_ROLE (3) |
 | `AccessManager.enableTransferShares(address)` | TECH_PLASMA_VAULT_ROLE (3) |
@@ -142,11 +142,11 @@ Weryfikacja systemu rol, uprawnien i hierarchii w IporFusionAccessManager.
 | `AccessManager.updateTargetClosed(...)` | GUARDIAN_ROLE (2) |
 | `AccessManager.canCallAndUpdate(...)` | TECH_PLASMA_VAULT_ROLE (3) |
 
-#### Mappingi na WithdrawManager (jesli wdrozony):
+#### WithdrawManager mappings (if deployed):
 
-| Funkcja | Oczekiwana rola |
-|---------|-----------------|
-| `requestShares(...)` | PUBLIC_ROLE (publiczny dostep do requestow) |
+| Function | Expected Role |
+|----------|---------------|
+| `requestShares(...)` | PUBLIC_ROLE (public access to requests) |
 | `releaseFunds(...)` | ALPHA_ROLE (200) |
 | `updateWithdrawWindow(...)` | ATOMIST_ROLE (100) |
 | `updatePlasmaVaultAddress(...)` | ATOMIST_ROLE (100) |
@@ -155,10 +155,10 @@ Weryfikacja systemu rol, uprawnien i hierarchii w IporFusionAccessManager.
 | `updateWithdrawFee(...)` | WITHDRAW_MANAGER_WITHDRAW_FEE_ROLE (902) |
 | `updateRequestFee(...)` | WITHDRAW_MANAGER_REQUEST_FEE_ROLE (901) |
 
-#### Mappingi na PriceOracleMiddlewareManager (jesli wdrozony):
+#### PriceOracleMiddlewareManager mappings (if deployed):
 
-| Funkcja | Oczekiwana rola |
-|---------|-----------------|
+| Function | Expected Role |
+|----------|---------------|
 | `setAssetsPriceSources(...)` | PRICE_ORACLE_MIDDLEWARE_MANAGER_ROLE (1200) |
 | `removeAssetsPriceSources(...)` | PRICE_ORACLE_MIDDLEWARE_MANAGER_ROLE (1200) |
 | `setPriceOracleMiddleware(...)` | ATOMIST_ROLE (100) |
@@ -167,10 +167,10 @@ Weryfikacja systemu rol, uprawnien i hierarchii w IporFusionAccessManager.
 | `validateAllAssetsPrices(...)` | TECH_PLASMA_VAULT_ROLE (3) |
 | `validateAssetsPrices(...)` | TECH_PLASMA_VAULT_ROLE (3) |
 
-#### Mappingi na RewardsClaimManager (jesli wdrozony):
+#### RewardsClaimManager mappings (if deployed):
 
-| Funkcja | Oczekiwana rola |
-|---------|-----------------|
+| Function | Expected Role |
+|----------|---------------|
 | `claimRewards(...)` | CLAIM_REWARDS_ROLE (600) |
 | `transfer(...)` | TRANSFER_REWARDS_ROLE (700) |
 | `updateBalance(...)` | UPDATE_REWARDS_BALANCE_ROLE (1100) |
@@ -184,9 +184,9 @@ Weryfikacja systemu rol, uprawnien i hierarchii w IporFusionAccessManager.
 ## HIGH
 
 ### AC-010: Role Admin Hierarchy
-- **Warunek**: Kazda rola ma poprawna admin role
-- **Jak sprawdzic**: Weryfikacja ustawien admin role dla kazdej roli
-- **Oczekiwany wynik**:
+- **Condition**: Each role has the correct admin role
+- **How to check**: Verify admin role settings for each role
+- **Expected result**:
   - OWNER_ROLE (1) admin = OWNER_ROLE (1) (self-administering)
   - GUARDIAN_ROLE (2) admin = OWNER_ROLE (1)
   - PRE_HOOKS_MANAGER_ROLE (301) admin = OWNER_ROLE (1)
@@ -207,75 +207,75 @@ Weryfikacja systemu rol, uprawnien i hierarchii w IporFusionAccessManager.
   - TECH_REWARDS_CLAIM_MANAGER_ROLE (601) admin = ADMIN_ROLE (0)
   - IPOR_DAO_ROLE (4) admin = self (4)
   - TECH_CONTEXT_MANAGER_ROLE (5) admin = self (5)
-- **Uwagi**: Bledna hierarchia = eskalacja uprawnien. Role TECH_* z self-admin sa niezmienne po inicjalizacji
+- **Notes**: Incorrect hierarchy = privilege escalation. TECH_* roles with self-admin are immutable after initialization
 
 ### AC-011: Execution Delays
-- **Warunek**: Role z execution delay maja ustawione minimalne opoznienia
-- **Jak sprawdzic**: Sprawdz delay per rola w AccessManager
-- **Oczekiwany wynik**: Zgodne z governance policy (np. ATOMIST 24h delay)
-- **Uwagi**: Delays chronia przed atakami flash-loan na governance
+- **Condition**: Roles with execution delay have minimum delays set
+- **How to check**: Check delay per role in AccessManager
+- **Expected result**: Consistent with governance policy (e.g., ATOMIST 24h delay)
+- **Notes**: Delays protect against flash-loan governance attacks
 
 ### AC-012: Redemption Delay
-- **Warunek**: REDEMPTION_DELAY_IN_SECONDS jest ustawiony sensownie
-- **Jak sprawdzic**: Odczyt z AccessManager
-- **Oczekiwany wynik**: > 0 i <= 7 dni (604800 sekund)
-- **Uwagi**: Chroni przed sandwich attacks deposit-withdraw
+- **Condition**: REDEMPTION_DELAY_IN_SECONDS is set reasonably
+- **How to check**: Read from AccessManager
+- **Expected result**: > 0 and <= 7 days (604800 seconds)
+- **Notes**: Protects against deposit-withdraw sandwich attacks
 
 ### AC-013: Target Closed Status
-- **Warunek**: Vault NIE jest w stanie paused (chyba ze zamierzony)
-- **Jak sprawdzic**: `AccessManager.isTargetClosed(vaultAddress)`
-- **Oczekiwany wynik**: false (jesli vault powinien byc aktywny)
-- **Uwagi**: Guardian moze zamknac vault w emergency
+- **Condition**: Vault is NOT in paused state (unless intended)
+- **How to check**: `AccessManager.isTargetClosed(vaultAddress)`
+- **Expected result**: false (if vault should be active)
+- **Notes**: Guardian can close the vault in an emergency
 
 ### AC-014: TECH roles - Immutability and Correctness
-- **Warunek**: Role TECH_* sa przypisane TYLKO do systemowych kontraktow I te kontrakty sa poprawnymi komponentami stacku vaulta
-- **Jak sprawdzic**: Dla kazdej roli TECH_*:
-  1. Sprawdz holdera roli (kto ja posiada)
-  2. Zweryfikuj ze holder jest poprawnym kontraktem stacku vaulta (nie obcym adresem)
-  3. Sprawdz ze holder jest powiazany z TYM vaultem (nie innym)
-- **Oczekiwany wynik**:
-  - TECH_PLASMA_VAULT_ROLE (3) → holder == adres TEGO PlasmaVault
-  - TECH_WITHDRAW_MANAGER_ROLE (6) → holder == WithdrawManager TEGO vaulta (zgodny z vault storage)
-  - TECH_CONTEXT_MANAGER_ROLE (5) → holder == ContextManager TEGO vaulta
-  - TECH_PERFORMANCE_FEE_MANAGER_ROLE (400) → holder == FeeManager TEGO vaulta (zgodny z getPerformanceFeeData().feeAccount)
-  - TECH_MANAGEMENT_FEE_MANAGER_ROLE (500) → holder == FeeManager TEGO vaulta (zgodny z getManagementFeeData().feeAccount)
-  - TECH_REWARDS_CLAIM_MANAGER_ROLE (601) → holder == RewardsClaimManager TEGO vaulta (zgodny z getRewardsClaimManagerAddress())
-- **Uwagi**: CRITICAL jesli holder nie zgadza sie z adresem zapisanym w vaulcie. Te role nie powinny byc nigdy reassignowane do innych kontraktow
+- **Condition**: TECH_* roles are assigned ONLY to system contracts AND those contracts are valid components of the vault stack
+- **How to check**: For each TECH_* role:
+  1. Check the role holder (who holds it)
+  2. Verify the holder is a valid contract in the vault stack (not a foreign address)
+  3. Verify the holder is associated with THIS vault (not another one)
+- **Expected result**:
+  - TECH_PLASMA_VAULT_ROLE (3) → holder == address of THIS PlasmaVault
+  - TECH_WITHDRAW_MANAGER_ROLE (6) → holder == WithdrawManager of THIS vault (matches vault storage)
+  - TECH_CONTEXT_MANAGER_ROLE (5) → holder == ContextManager of THIS vault
+  - TECH_PERFORMANCE_FEE_MANAGER_ROLE (400) → holder == FeeManager of THIS vault (matches getPerformanceFeeData().feeAccount)
+  - TECH_MANAGEMENT_FEE_MANAGER_ROLE (500) → holder == FeeManager of THIS vault (matches getManagementFeeData().feeAccount)
+  - TECH_REWARDS_CLAIM_MANAGER_ROLE (601) → holder == RewardsClaimManager of THIS vault (matches getRewardsClaimManagerAddress())
+- **Notes**: CRITICAL if the holder doesn't match the address stored in the vault. These roles should never be reassigned to other contracts
 
 ### AC-015: FUSE_MANAGER_ROLE Assignment
-- **Warunek**: FUSE_MANAGER_ROLE przypisany do oczekiwanych adresow
-- **Jak sprawdzic**: `AccessManager.hasRole(300, address)`
-- **Oczekiwany wynik**: Tylko autoryzowane adresy
-- **Uwagi**: Fuse manager moze dodawac/usuwac fuse - wplyw na strategie
+- **Condition**: FUSE_MANAGER_ROLE is assigned to expected addresses
+- **How to check**: `AccessManager.hasRole(300, address)`
+- **Expected result**: Only authorized addresses
+- **Notes**: Fuse manager can add/remove fuses - impacts strategy
 
 ### AC-016: No Unauthorized Role Holders
-- **Warunek**: Zadna rola nie ma nieautoryzowanych holderow
-- **Jak sprawdzic**: Analiza eventow `RoleGranted` i `RoleRevoked` z AccessManagera
-- **Oczekiwany wynik**: Kazdy holder jest oczekiwany
-- **Uwagi**: Regularna weryfikacja wszystkich rol
+- **Condition**: No role has unauthorized holders
+- **How to check**: Analyze `RoleGranted` and `RoleRevoked` events from AccessManager
+- **Expected result**: Every holder is expected
+- **Notes**: Regular verification of all roles
 
 ---
 
 ## MEDIUM
 
 ### AC-020: ContextManager Approved Targets
-- **Warunek**: Jesli ContextManager jest uzywany - approved targets to TYLKO kontrakty ze stacku danego vaulta
-- **Jak sprawdzic**: `ContextManager.getApprovedTargets()` → lista adresow. Kazdy adres musi byc jednym z: PlasmaVault, WithdrawManager, FeeManager, RewardsClaimManager, PriceOracleMiddleware lub PriceOracleMiddlewareManager tego vaulta
-- **Oczekiwany wynik**: Tylko adresy kontraktow nalezacych do stacku tego vaulta. Zaden obcy adres
-- **Uwagi**: Approved target spoza stacku vaulta = potencjalna eskalacja uprawnien przez context manipulation
+- **Condition**: If ContextManager is used - approved targets are ONLY contracts from this vault's stack
+- **How to check**: `ContextManager.getApprovedTargets()` → list of addresses. Each address must be one of: PlasmaVault, WithdrawManager, FeeManager, RewardsClaimManager, PriceOracleMiddleware, or PriceOracleMiddlewareManager of this vault
+- **Expected result**: Only addresses of contracts belonging to this vault's stack. No foreign addresses
+- **Notes**: Approved target outside the vault stack = potential privilege escalation via context manipulation
 
 ### AC-021: AccessManager Initialization
-- **Warunek**: AccessManager jest zainicjalizowany (nie mozna ponownie)
-- **Jak sprawdzic**: Sprobuj wywolac `initialize()` - powinno zrevertowac
-- **Oczekiwany wynik**: Revert
+- **Condition**: AccessManager is initialized (cannot be re-initialized)
+- **How to check**: Try calling `initialize()` - should revert
+- **Expected result**: Revert
 
 ### AC-022: Pre-Hooks Configuration and Origin
-- **Warunek**: Pre-hooks sa skonfigurowane poprawnie I ich kontrakty pochodza z zaufanego zrodla
-- **Jak sprawdzic**:
-  1. Odczyt pre-hooks mappingu z vault (selector → implementation)
-  2. Dla kazdego pre-hook kontraktu sprawdz:
-     - Czy kod jest zweryfikowany na block explorerze
-     - Czy kontrakt zostal zdeployowany przez IPOR deployer (sprawdz tx deployer address)
-     - Lub czy kod kontraktu odpowiada kodowi z repozytorium ipor-fusion (porownaj bytecode)
-- **Oczekiwany wynik**: Wszystkie pre-hook implementacje sa znanymi kontraktami z repo IPOR Fusion, zdeployowanymi przez zaufany deployer
-- **Uwagi**: Pre-hook wykonywany jest PRZED kazda operacja vaulta. Obcy/niezweryfikowany pre-hook moze blokowac lub manipulowac operacjami
+- **Condition**: Pre-hooks are configured correctly AND their contracts originate from a trusted source
+- **How to check**:
+  1. Read pre-hooks mapping from vault (selector → implementation)
+  2. For each pre-hook contract verify:
+     - Code is verified on a block explorer
+     - Contract was deployed by the IPOR deployer (check tx deployer address)
+     - Or contract code matches the code from the ipor-fusion repository (compare bytecode)
+- **Expected result**: All pre-hook implementations are known contracts from the IPOR Fusion repo, deployed by a trusted deployer
+- **Notes**: Pre-hook is executed BEFORE every vault operation. A foreign/unverified pre-hook can block or manipulate operations

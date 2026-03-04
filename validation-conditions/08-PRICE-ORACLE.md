@@ -1,11 +1,11 @@
 # 08 - Price Oracle Validation
 
-## Cel
-Weryfikacja systemu price oracle, feedow cenowych i konfiguracji PriceOracleMiddleware.
+## Purpose
+Verify the price oracle system, price feeds, and PriceOracleMiddleware configuration.
 
 ---
 
-## Architektura Oracle
+## Oracle Architecture
 
 ```
 PlasmaVault
@@ -19,117 +19,117 @@ PlasmaVault
         │   └── ...
         └── Chainlink Feed Registry (fallback)
 
-  └── PriceOracleMiddlewareManager (vault-specific, opcjonalny)
+  └── PriceOracleMiddlewareManager (vault-specific, optional)
         ├── Asset → Custom source mapping
         └── Price validation (delta checking)
 ```
 
-**Kluczowe**: Wszystkie ceny w USD, 18 decimals (WAD). Quote currency = address(0x348).
+**Key**: All prices in USD, 18 decimals (WAD). Quote currency = address(0x348).
 
 ---
 
 ## CRITICAL
 
 ### PO-001: Price Oracle Middleware Set
-- **Warunek**: Vault ma skonfigurowany PriceOracleMiddleware
-- **Jak sprawdzic**: `PlasmaVaultGovernance.getPriceOracleMiddleware()`
-- **Oczekiwany wynik**: Poprawny adres (nie address(0))
-- **Uwagi**: BEZ oracle vault NIE MOZE przeliczac balansow na USD
+- **Condition**: Vault has a configured PriceOracleMiddleware
+- **How to check**: `PlasmaVaultGovernance.getPriceOracleMiddleware()`
+- **Expected result**: Valid address (not address(0))
+- **Notes**: WITHOUT oracle the vault CANNOT convert balances to USD
 
 ### PO-002: Quote Currency = USD
-- **Warunek**: Oracle uzywa USD jako quote currency
-- **Jak sprawdzic**: Sprawdz QUOTE_CURRENCY w PriceOracleMiddleware == address(0x348)
-- **Oczekiwany wynik**: address(0x0000000000000000000000000000000000000348)
-- **Uwagi**: ISO-4217 kod USD. Inne quote currency = bledne wyceny
+- **Condition**: Oracle uses USD as quote currency
+- **How to check**: Check QUOTE_CURRENCY in PriceOracleMiddleware == address(0x348)
+- **Expected result**: address(0x0000000000000000000000000000000000000348)
+- **Notes**: ISO-4217 USD code. Different quote currency = incorrect valuations
 
 ### PO-003: Underlying Token Has Price Feed
-- **Warunek**: Underlying token vaulta (asset) ma skonfigurowany price feed
-- **Jak sprawdzic**: `PriceOracleMiddleware.getAssetPrice(asset)` nie revertuje
-- **Oczekiwany wynik**: Cena > 0, decimals = 18
-- **Uwagi**: Bez ceny underlying tokena - konwersja balance USD -> amount jest niemozliwa
+- **Condition**: Vault's underlying token (asset) has a configured price feed
+- **How to check**: `PriceOracleMiddleware.getAssetPrice(asset)` doesn't revert
+- **Expected result**: Price > 0, decimals = 18
+- **Notes**: Without the underlying token's price - USD → amount balance conversion is impossible
 
 ### PO-004: All Substrate Assets Have Price Feeds
-- **Warunek**: KAZDY asset uzywany w substrates ma price feed
-- **Jak sprawdzic**: Dla kazdego tokena w substrates: `getAssetPrice(token)` nie revertuje
-- **Oczekiwany wynik**: Cena > 0 dla kazdego assetu
-- **Uwagi**: Brak ceny = balance fuse nie moze obliczyc wartosci w USD
+- **Condition**: EVERY asset used in substrates has a price feed
+- **How to check**: For each token in substrates: `getAssetPrice(token)` doesn't revert
+- **Expected result**: Price > 0 for every asset
+- **Notes**: Missing price = balance fuse cannot calculate USD value
 
 ### PO-005: Price Feed Accuracy
-- **Warunek**: Ceny z oracle sa zblizone do rynkowych
-- **Jak sprawdzic**: Porownaj `getAssetPrice()` z aktualna cena rynkowa
-- **Oczekiwany wynik**: Odchylenie < 1-2%
-- **Uwagi**: Duze odchylenie = bledna wycena sharesow, arbitraz
+- **Condition**: Oracle prices are close to market prices
+- **How to check**: Compare `getAssetPrice()` with current market price
+- **Expected result**: Deviation < 1-2%
+- **Notes**: Large deviation = incorrect share valuation, arbitrage
 
 ### PO-006: Price Feed Freshness
-- **Warunek**: Ceny nie sa stale (Chainlink heartbeat)
-- **Jak sprawdzic**: Sprawdz timestamp ostatniej aktualizacji Chainlink feed
-- **Oczekiwany wynik**: Ostatnia aktualizacja < heartbeat interval (np. 1h, 24h)
-- **Uwagi**: Stale ceny = bledna wycena
+- **Condition**: Prices are not stale (Chainlink heartbeat)
+- **How to check**: Check timestamp of last Chainlink feed update
+- **Expected result**: Last update < heartbeat interval (e.g., 1h, 24h)
+- **Notes**: Stale prices = incorrect valuation
 
 ---
 
 ## HIGH
 
 ### PO-010: Custom Price Feeds Correctness
-- **Warunek**: Custom price feeds (ERC4626PriceFeed, WstETHPriceFeed, etc.) sa poprawne
-- **Jak sprawdzic**: Dla kazdego assetu z custom feedem:
-  - `PriceOracleMiddleware.getSourceOfAssetPrice(asset)` → adres custom feed
-  - Sprawdz parametry custom feed (base asset, reference oracle, etc.)
-- **Oczekiwany wynik**: Poprawne parametry
-- **Uwagi**: Bledny custom feed = systematycznie bledna wycena
+- **Condition**: Custom price feeds (ERC4626PriceFeed, WstETHPriceFeed, etc.) are correct
+- **How to check**: For each asset with a custom feed:
+  - `PriceOracleMiddleware.getSourceOfAssetPrice(asset)` → custom feed address
+  - Check custom feed parameters (base asset, reference oracle, etc.)
+- **Expected result**: Correct parameters
+- **Notes**: Incorrect custom feed = systematically incorrect valuation
 
 ### PO-011: Derivative Asset Price Feeds
-- **Warunek**: Assety pochodne (wstETH, sDAI, LP tokeny) maja odpowiednie price feeds
-- **Jak sprawdzic**: Sprawdz typ price feed dla kazdego derivative assetu
-- **Oczekiwany wynik**:
-  - wstETH → WstETHPriceFeed (uzywa kursu wstETH/stETH + stETH/USD)
-  - sDAI → SDaiPriceFeed (uzywa kursu sDAI/DAI + DAI/USD)
-  - LP tokens → odpowiedni LP price feed
-  - ERC4626 shares → ERC4626PriceFeed (uzywa convertToAssets + asset price)
-- **Uwagi**: Prosty Chainlink feed dla derivative moze nie istniec
+- **Condition**: Derivative assets (wstETH, sDAI, LP tokens) have appropriate price feeds
+- **How to check**: Check the price feed type for each derivative asset
+- **Expected result**:
+  - wstETH → WstETHPriceFeed (uses wstETH/stETH rate + stETH/USD)
+  - sDAI → SDaiPriceFeed (uses sDAI/DAI rate + DAI/USD)
+  - LP tokens → appropriate LP price feed
+  - ERC4626 shares → ERC4626PriceFeed (uses convertToAssets + asset price)
+- **Notes**: A simple Chainlink feed for a derivative may not exist
 
 ### PO-012: Price Oracle Decimals Consistency
-- **Warunek**: Wszystkie ceny sa w 18 decimals
-- **Jak sprawdzic**: `getAssetPrice(asset)` returns (price, decimals) - decimals == 18
-- **Oczekiwany wynik**: decimals = 18 dla kazdego assetu
-- **Uwagi**: Rozne decimals = bledne obliczenia w balance fuses
+- **Condition**: All prices are in 18 decimals
+- **How to check**: `getAssetPrice(asset)` returns (price, decimals) - decimals == 18
+- **Expected result**: decimals = 18 for every asset
+- **Notes**: Different decimals = incorrect calculations in balance fuses
 
 ### PO-013: Chainlink Feed Registry (Ethereum)
-- **Warunek**: Na Ethereum - Chainlink Feed Registry jest dostepny jako fallback
-- **Jak sprawdzic**: Sprawdz czy PriceOracleMiddleware ma skonfigurowany registry
-- **Oczekiwany wynik**: Poprawny adres Chainlink Feed Registry (jesli na Ethereum)
-- **Uwagi**: Na L2 (Arbitrum, Base) moze nie byc Feed Registry
+- **Condition**: On Ethereum - Chainlink Feed Registry is available as fallback
+- **How to check**: Check if PriceOracleMiddleware has a configured registry
+- **Expected result**: Valid Chainlink Feed Registry address (if on Ethereum)
+- **Notes**: On L2 (Arbitrum, Base) Feed Registry may not be available
 
 ### PO-014: PriceOracleMiddlewareManager Setup (if used)
-- **Warunek**: Jesli vault uzywa PriceOracleMiddlewareManager - jest poprawnie skonfigurowany
-- **Jak sprawdzic**: Sprawdz configured assets i ich sources
-- **Oczekiwany wynik**: Wszystkie potrzebne assety maja zrodla cen
-- **Uwagi**: Manager nadpisuje domyslny middleware
+- **Condition**: If vault uses PriceOracleMiddlewareManager - it is correctly configured
+- **How to check**: Check configured assets and their sources
+- **Expected result**: All needed assets have price sources
+- **Notes**: Manager overrides the default middleware
 
 ### PO-015: Price Validation Configuration (if used)
-- **Warunek**: Jesli uzywa price validation - max delta jest sensowna
-- **Jak sprawdzic**: `getPriceValidationInfo(asset)` w PriceOracleMiddlewareManager
-- **Oczekiwany wynik**: Max delta zgodna z zmiennoscia assetu (np. 5% dla stablecoin, 20% dla volatile)
-- **Uwagi**: Za ciasna delta = blokuje operacje; za luźna = brak ochrony
+- **Condition**: If using price validation - max delta is reasonable
+- **How to check**: `getPriceValidationInfo(asset)` in PriceOracleMiddlewareManager
+- **Expected result**: Max delta consistent with asset volatility (e.g., 5% for stablecoin, 20% for volatile)
+- **Notes**: Too tight delta = blocks operations; too loose = no protection
 
 ---
 
 ## MEDIUM
 
 ### PO-020: Oracle Manipulation Resistance
-- **Warunek**: Price feeds sa odporne na manipulacje (TWAP, Chainlink, nie spot)
-- **Jak sprawdzic**: Sprawdz typ oracle uzywanego przez kazdy feed
-- **Oczekiwany wynik**: Chainlink, TWAP lub zaufany zrodlo (nie AMM spot price)
-- **Uwagi**: AMM spot price moze byc manipulowany flash loanami
+- **Condition**: Price feeds are resistant to manipulation (TWAP, Chainlink, not spot)
+- **How to check**: Check the oracle type used by each feed
+- **Expected result**: Chainlink, TWAP, or trusted source (not AMM spot price)
+- **Notes**: AMM spot price can be manipulated via flash loans
 
 ### PO-021: Multi-hop Price Feeds
-- **Warunek**: Wieloetapowe price feeds (token → intermediate → USD) sa poprawne
-- **Jak sprawdzic**: Sprawdz lancuch cenowy dla kazdego multi-hop feed
-- **Oczekiwany wynik**: Kazdy krok ma poprawne zrodlo
-- **Uwagi**: DualCrossReferencePriceFeed uzywa dwoch zrodel - oba musza byc poprawne
+- **Condition**: Multi-hop price feeds (token → intermediate → USD) are correct
+- **How to check**: Check the price chain for each multi-hop feed
+- **Expected result**: Each step has a correct source
+- **Notes**: DualCrossReferencePriceFeed uses two sources - both must be correct
 
 ### PO-022: Price Oracle Immutability
-- **Warunek**: Price oracle nie moze byc zmieniony bez governance delay
-- **Jak sprawdzic**: Sprawdz kto moze wywolac `setPriceOracleMiddleware()`
-- **Oczekiwany wynik**: ATOMIST_ROLE z odpowiednim execution delay
-- **Uwagi**: Zmiana oracle = zmiana wyceny wszystkich assetow
+- **Condition**: Price oracle cannot be changed without governance delay
+- **How to check**: Check who can call `setPriceOracleMiddleware()`
+- **Expected result**: ATOMIST_ROLE with appropriate execution delay
+- **Notes**: Changing the oracle = changing the valuation of all assets

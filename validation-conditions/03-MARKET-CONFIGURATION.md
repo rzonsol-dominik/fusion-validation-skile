@@ -1,22 +1,22 @@
 # 03 - Market Configuration Validation
 
-## Cel
-Weryfikacja konfiguracji poszczegolnych marketow w vaulcie.
-Kazdy market musi miec: Market ID, Balance Fuse, Substrates, Fuses.
+## Purpose
+Verify the configuration of individual markets in the vault.
+Each market must have: Market ID, Balance Fuse, Substrates, Fuses.
 
 ---
 
 ## Predefined Market IDs (IporFusionMarkets.sol)
 
-| Market ID | Nazwa | Protokol |
-|-----------|-------|----------|
+| Market ID | Name | Protocol |
+|-----------|------|----------|
 | 1 | AAVE_V3 | Aave V3 lending |
 | 2 | COMPOUND_V3_USDC | Compound V3 USDC |
 | 3 | GEARBOX_POOL_V3 | Gearbox V3 pool |
 | 4 | GEARBOX_FARM_DTOKEN_V3 | Gearbox V3 farming |
 | 5 | FLUID_INSTADAPP_POOL | Fluid pool |
 | 6 | FLUID_INSTADAPP_STAKING | Fluid staking |
-| 7 | ERC20_VAULT_BALANCE | Balance underlying w vaulcie |
+| 7 | ERC20_VAULT_BALANCE | Underlying balance in vault |
 | 8 | UNISWAP_SWAP_V3_POSITIONS | Uniswap V3 positions |
 | 9 | UNISWAP_SWAP_V2 | Uniswap V2 swaps |
 | 10 | UNISWAP_SWAP_V3 | Uniswap V3 swaps |
@@ -53,7 +53,7 @@ Kazdy market musi miec: Market ID, Balance Fuse, Substrates, Fuses.
 | 41 | MORPHO_LIQUIDITY_IN_MARKETS | Morpho liquidity |
 | 42 | ODOS_SWAPPER | Odos Swapper |
 | 43 | VELORA_SWAPPER | Velora Swapper |
-| 45 | AAVE_V4 / MIDAS | Aave V4 / Midas (UWAGA: duplikat ID!) |
+| 45 | AAVE_V4 / MIDAS | Aave V4 / Midas (WARNING: duplicate ID!) |
 | 46 | NAPIER | Napier |
 | 100_001 - 100_020 | ERC4626_0001 - ERC4626_0020 | Generic ERC4626 vaults |
 | 200_001 - 200_010 | META_MORPHO_0001-0010 | MetaMorpho vaults |
@@ -61,120 +61,120 @@ Kazdy market musi miec: Market ID, Balance Fuse, Substrates, Fuses.
 | type(uint256).max - 1 | ASSETS_BALANCE_VALIDATION | Assets validation (special) |
 | type(uint256).max - 2 | EXCHANGE_RATE_VALIDATOR | Exchange rate (special) |
 
-> **UWAGA**: Market ID 45 jest przypisany zarówno do AAVE_V4 jak i MIDAS w IporFusionMarkets.sol - to potencjalny bug w kodzie źródłowym.
+> **WARNING**: Market ID 45 is assigned to both AAVE_V4 and MIDAS in IporFusionMarkets.sol - this is a potential bug in the source code.
 
 ---
 
 ## CRITICAL - Per Market
 
 ### MC-001: Balance Fuse Assigned
-- **Warunek**: Kazdy aktywny market MA przypisany dokladnie JEDEN balance fuse
-- **Jak sprawdzic**: `PlasmaVaultGovernance.isBalanceFuseSupported(marketId, expectedFuseAddress)`
-- **Oczekiwany wynik**: true dla kazdego aktywnego marketu
-- **Uwagi**: BEZ balance fuse vault NIE MOZE sledzic balansow w danym markecie!
+- **Condition**: Every active market HAS exactly ONE balance fuse assigned
+- **How to check**: `PlasmaVaultGovernance.isBalanceFuseSupported(marketId, expectedFuseAddress)`
+- **Expected result**: true for every active market
+- **Notes**: WITHOUT a balance fuse the vault CANNOT track balances in that market!
 
 ### MC-002: Balance Fuse Market ID Match
-- **Warunek**: Balance fuse ma ten sam MARKET_ID co market do ktorego jest przypisany
-- **Jak sprawdzic**: `IFuseCommon(balanceFuse).MARKET_ID()` == oczekiwany marketId
-- **Oczekiwany wynik**: Zgodnosc market ID
-- **Uwagi**: Mismatch = bledne odczyty balansow = bledna wycena sharesow
+- **Condition**: Balance fuse has the same MARKET_ID as the market it's assigned to
+- **How to check**: `IFuseCommon(balanceFuse).MARKET_ID()` == expected marketId
+- **Expected result**: Market ID match
+- **Notes**: Mismatch = incorrect balance readings = incorrect share valuation
 
 ### MC-003: Market Substrates Configured
-- **Warunek**: Kazdy aktywny market ma skonfigurowane substrates (dozwolone assety/adresy)
-- **Jak sprawdzic**: `PlasmaVaultGovernance.getMarketSubstrates(marketId)`
-- **Oczekiwany wynik**: Niepusta lista substratow dla kazdego aktywnego marketu
-- **Uwagi**: Puste substrates = fuse nie moze operowac na zadnym assecie
+- **Condition**: Every active market has configured substrates (allowed assets/addresses)
+- **How to check**: `PlasmaVaultGovernance.getMarketSubstrates(marketId)`
+- **Expected result**: Non-empty substrate list for every active market
+- **Notes**: Empty substrates = fuse cannot operate on any asset
 
 ### MC-004: Substrate Correctness
-- **Warunek**: Substrates zawieraja POPRAWNE adresy/identyfikatory dla danego protokolu
-- **Jak sprawdzic**: Dekoduj substrates i porownaj z oczekiwanymi assetami
-  - Dla lending: adresy tokenow (USDC, DAI, etc.)
-  - Dla Morpho: market IDs (bytes32)
-  - Dla Uniswap: adresy par tokenow
-  - Dla Balancer: adresy pooli + tokeny
-  - Dla Aerdrome: adresy gauge
-- **Oczekiwany wynik**: Wszystkie substrates sa poprawnymi adresami/ID
-- **Uwagi**: Bledny substrate = operacja na niezamierzonym assecie/rynku
+- **Condition**: Substrates contain CORRECT addresses/identifiers for the given protocol
+- **How to check**: Decode substrates and compare with expected assets
+  - For lending: token addresses (USDC, DAI, etc.)
+  - For Morpho: market IDs (bytes32)
+  - For Uniswap: token pair addresses
+  - For Balancer: pool addresses + tokens
+  - For Aerodrome: gauge addresses
+- **Expected result**: All substrates are valid addresses/IDs
+- **Notes**: Incorrect substrate = operation on unintended asset/market
 
 ### MC-005: Supply/Interaction Fuses Registered
-- **Warunek**: Fuses potrzebne do operacji na markecie sa zarejestrowane w vaulcie
-- **Jak sprawdzic**: `PlasmaVaultGovernance.isFuseSupported(fuseAddress)` dla kazdego fuse
-- **Oczekiwany wynik**: true dla wszystkich wymaganych fuse'ow
-- **Uwagi**: Niezarejestrowany fuse = execute() zrevertuje
+- **Condition**: Fuses needed for market operations are registered in the vault
+- **How to check**: `PlasmaVaultGovernance.isFuseSupported(fuseAddress)` for each fuse
+- **Expected result**: true for all required fuses
+- **Notes**: Unregistered fuse = execute() will revert
 
 ### MC-006: Fuse Market ID Match
-- **Warunek**: Kazdy fuse (supply, borrow, etc.) ma MARKET_ID zgodny z marktem
-- **Jak sprawdzic**: `IFuseCommon(fuse).MARKET_ID()` == oczekiwany marketId
-- **Oczekiwany wynik**: Zgodnosc
-- **Uwagi**: Mismatch = fuse operuje na niewlasciwym markecie
+- **Condition**: Every fuse (supply, borrow, etc.) has a MARKET_ID matching its market
+- **How to check**: `IFuseCommon(fuse).MARKET_ID()` == expected marketId
+- **Expected result**: Match
+- **Notes**: Mismatch = fuse operates on the wrong market
 
 ### MC-007: ERC20_VAULT_BALANCE Market
-- **Warunek**: Market ERC20_VAULT_BALANCE (ID specjalny) ma balance fuse
-- **Jak sprawdzic**: Sprawdz balance fuse dla tego marketu
-- **Oczekiwany wynik**: Erc20BalanceFuse jest przypisany
-- **Uwagi**: Ten market sledzi natywny balance underlying tokena w vaulcie
+- **Condition**: ERC20_VAULT_BALANCE market (special ID) has a balance fuse
+- **How to check**: Check balance fuse for this market
+- **Expected result**: Erc20BalanceFuse is assigned
+- **Notes**: This market tracks the native underlying token balance in the vault
 
 ---
 
 ## HIGH
 
 ### MC-010: Fuse Constructor Parameters
-- **Warunek**: Fuses sa zdeployowane z poprawnymi parametrami (market ID, adresy protokolow)
-- **Jak sprawdzic**: Odczyt immutable zmiennych z fuse'a (np. AAVE_POOL, COMET, MORPHO)
-- **Oczekiwany wynik**: Poprawne adresy protokolow na danym chainie
-- **Uwagi**: Bledny adres protokolu = operacje failuja lub ida do zlego kontraktu
+- **Condition**: Fuses are deployed with correct parameters (market ID, protocol addresses)
+- **How to check**: Read immutable variables from the fuse (e.g., AAVE_POOL, COMET, MORPHO)
+- **Expected result**: Correct protocol addresses on the given chain
+- **Notes**: Incorrect protocol address = operations fail or go to the wrong contract
 
 ### MC-011: Substrate Type Consistency
-- **Warunek**: Typ substratu jest zgodny z typem oczekiwanym przez fuse
-- **Jak sprawdzic**: Weryfikuj format substratow:
+- **Condition**: Substrate type matches the type expected by the fuse
+- **How to check**: Verify substrate formats:
   - Asset substrates: `bytes32(uint256(uint160(address)))`
-  - Morpho market IDs: raw bytes32 z Morpho
-  - Gauge substrates: zakodowane adresy gauge
-  - Pool substrates: zakodowane adresy pool
-- **Oczekiwany wynik**: Format zgodny z implementacja fuse
-- **Uwagi**: Bledny format = fuse nie rozpozna substratu
+  - Morpho market IDs: raw bytes32 from Morpho
+  - Gauge substrates: encoded gauge addresses
+  - Pool substrates: encoded pool addresses
+- **Expected result**: Format matches the fuse implementation
+- **Notes**: Incorrect format = fuse won't recognize the substrate
 
 ### MC-012: Active Markets List
-- **Warunek**: Lista aktywnych marketow jest zgodna z oczekiwaniami
-- **Jak sprawdzic**: `PlasmaVaultGovernance.getActiveMarketsInBalanceFuses()`
-- **Oczekiwany wynik**: Wszystkie zamierzone markety sa na liscie
-- **Uwagi**: Brakujacy market = nie jest sledzony w totalAssets
+- **Condition**: Active markets list matches expectations
+- **How to check**: `PlasmaVaultGovernance.getActiveMarketsInBalanceFuses()`
+- **Expected result**: All intended markets are on the list
+- **Notes**: Missing market = not tracked in totalAssets
 
 ### MC-013: All Fuses Listed
-- **Warunek**: Wszystkie potrzebne fuses sa w liscie supported fuses
-- **Jak sprawdzic**: `PlasmaVaultGovernance.getFuses()`
-- **Oczekiwany wynik**: Kompletna lista wszystkich wymaganych fuse'ow
-- **Uwagi**: Porownaj z oczekiwana konfiguracja
+- **Condition**: All required fuses are in the supported fuses list
+- **How to check**: `PlasmaVaultGovernance.getFuses()`
+- **Expected result**: Complete list of all required fuses
+- **Notes**: Compare with expected configuration
 
 ### MC-014: No Obsolete Fuses
-- **Warunek**: Nie ma starych/niepotrzebnych fuse'ow w liscie
-- **Jak sprawdzic**: `PlasmaVaultGovernance.getFuses()` - sprawdz kazdy
-- **Oczekiwany wynik**: Kazdy fuse jest potrzebny i aktualny
-- **Uwagi**: Stary fuse moze miec bugi/luki
+- **Condition**: No old/unnecessary fuses remain in the list
+- **How to check**: `PlasmaVaultGovernance.getFuses()` - check each one
+- **Expected result**: Every fuse is needed and up-to-date
+- **Notes**: Old fuses may have bugs/vulnerabilities
 
 ### MC-015: Substrate Not Over-Permissive
-- **Warunek**: Substrates nie zawieraja niepotrzebnych assetow
-- **Jak sprawdzic**: Porownaj substrates z zamierzona strategia
-- **Oczekiwany wynik**: Tylko potrzebne assety/rynki
-- **Uwagi**: Over-permissive substrates = Alpha moze operowac na niezamierzonych assetach
+- **Condition**: Substrates don't contain unnecessary assets
+- **How to check**: Compare substrates with intended strategy
+- **Expected result**: Only needed assets/markets
+- **Notes**: Over-permissive substrates = Alpha can operate on unintended assets
 
 ---
 
 ## MEDIUM
 
 ### MC-020: Balance Fuse Returns Sensible Value
-- **Warunek**: Balance fuse zwraca rozsadna wartosc dla obecnego stanu
-- **Jak sprawdzic**: Wywolaj `balanceOf()` na balance fuse (statycznie)
-- **Oczekiwany wynik**: Wartosc >= 0 i zgodna z rzeczywistym stanem na protokole
-- **Uwagi**: Test funkcjonalny
+- **Condition**: Balance fuse returns a reasonable value for the current state
+- **How to check**: Call `balanceOf()` on the balance fuse (statically)
+- **Expected result**: Value >= 0 and consistent with the actual state on the protocol
+- **Notes**: Functional test
 
 ### MC-021: Supply Fuse Permissions on Protocol
-- **Warunek**: Vault ma odpowiednie approvals/permissions na protokole bazowym
-- **Jak sprawdzic**: Sprawdz ERC20 allowances vaulta do protokolow
-- **Oczekiwany wynik**: Approvals sa ustawiane dynamicznie przez fuse (nie wstepnie)
-- **Uwagi**: Fuses powinny robic approve -> interact -> revoke approve
+- **Condition**: Vault has appropriate approvals/permissions on the underlying protocol
+- **How to check**: Check ERC20 allowances from vault to protocols
+- **Expected result**: Approvals are set dynamically by the fuse (not pre-set)
+- **Notes**: Fuses should do approve -> interact -> revoke approve
 
 ### MC-022: Market ID Uniqueness
-- **Warunek**: Kazdy market ID jest uzyty dokladnie raz
-- **Jak sprawdzic**: Sprawdz ze nie ma duplikatow w active markets
-- **Oczekiwany wynik**: Unikalne market IDs
+- **Condition**: Each market ID is used exactly once
+- **How to check**: Verify no duplicates in active markets
+- **Expected result**: Unique market IDs

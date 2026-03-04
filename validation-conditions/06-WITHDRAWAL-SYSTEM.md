@@ -1,109 +1,109 @@
 # 06 - Withdrawal System Validation
 
-## Cel
-Weryfikacja systemu wyplat: instant withdrawal fuses, scheduled withdrawals, WithdrawManager.
+## Purpose
+Verify the withdrawal system: instant withdrawal fuses, scheduled withdrawals, WithdrawManager.
 
 ---
 
 ## CRITICAL
 
 ### WS-001: Instant Withdrawal Fuses Configured
-- **Warunek**: Instant withdrawal fuses sa skonfigurowane dla kazdego marketu z ktorego vault moze musiec wyplacic
-- **Jak sprawdzic**: `PlasmaVaultGovernance.getInstantWithdrawalFuses()`
-- **Oczekiwany wynik**: Niepusta lista fuse'ow (jesli vault ma assety w marketach)
-- **Uwagi**: BEZ instant withdrawal fuses uzytkownik NIE MOZE wyplacic assetow zdeponowanych w protokolach
+- **Condition**: Instant withdrawal fuses are configured for every market from which the vault may need to withdraw
+- **How to check**: `PlasmaVaultGovernance.getInstantWithdrawalFuses()`
+- **Expected result**: Non-empty list of fuses (if vault has assets in markets)
+- **Notes**: WITHOUT instant withdrawal fuses users CANNOT withdraw assets deposited in protocols
 
 ### WS-002: Instant Withdrawal Fuses Order
-- **Warunek**: Kolejnosc fuse'ow jest optymalna (najtansza/najplynniejsza najpierw)
-- **Jak sprawdzic**: `getInstantWithdrawalFuses()` + analiza kolejnosci
-- **Oczekiwany wynik**:
-  1. Najpierw: ERC20 vault balance (najtanszy)
-  2. Potem: Najbardziej plynne markety (Aave, Compound)
-  3. Na koncu: Mniej plynne (LP pozycje, staking)
-- **Uwagi**: Zla kolejnosc = wyzszy gas, gorsze wykonanie
+- **Condition**: Fuse order is optimal (cheapest/most liquid first)
+- **How to check**: `getInstantWithdrawalFuses()` + order analysis
+- **Expected result**:
+  1. First: ERC20 vault balance (cheapest)
+  2. Then: Most liquid markets (Aave, Compound)
+  3. Last: Less liquid (LP positions, staking)
+- **Notes**: Wrong order = higher gas, worse execution
 
 ### WS-003: Instant Withdrawal Fuses Parameters
-- **Warunek**: Parametry kazdego instant withdrawal fuse sa poprawne
-- **Jak sprawdzic**: `getInstantWithdrawalFusesParams(fuse, index)` dla kazdego fuse
-- **Oczekiwany wynik**:
-  - params[0] = zarezerwowany na kwote (ustawiany dynamicznie)
-  - params[1+] = specyficzne parametry fuse (np. adresy assetow, market IDs)
-- **Uwagi**: Bledne parametry = withdrawal failuje
+- **Condition**: Parameters for each instant withdrawal fuse are correct
+- **How to check**: `getInstantWithdrawalFusesParams(fuse, index)` for each fuse
+- **Expected result**:
+  - params[0] = reserved for amount (set dynamically)
+  - params[1+] = fuse-specific parameters (e.g., asset addresses, market IDs)
+- **Notes**: Incorrect parameters = withdrawal fails
 
 ### WS-004: Instant Withdrawal Fuses Support IFuseInstantWithdraw
-- **Warunek**: Kazdy fuse w liscie implementuje IFuseInstantWithdraw
-- **Jak sprawdzic**: Sprawdz czy fuse ma `instantWithdraw(bytes32[])` method
-- **Oczekiwany wynik**: Wszystkie fuse supportuja interfejs
-- **Uwagi**: Fuse bez tego interfejsu nie bedzie uzywany do wyplat
+- **Condition**: Every fuse in the list implements IFuseInstantWithdraw
+- **How to check**: Check if fuse has `instantWithdraw(bytes32[])` method
+- **Expected result**: All fuses support the interface
+- **Notes**: Fuse without this interface won't be used for withdrawals
 
 ### WS-005: Withdrawal Coverage
-- **Warunek**: Instant withdrawal fuses pokrywaja WSZYSTKIE markety w ktorych vault trzyma assety
-- **Jak sprawdzic**: Porownaj markety z balance > 0 z marketami pokrytymi przez instant withdrawal fuses
-- **Oczekiwany wynik**: Kazdy market z assetami ma odpowiedni withdrawal fuse
-- **Uwagi**: Market bez withdrawal fuse = locked funds (assety niedostepne do wyplaty)
+- **Condition**: Instant withdrawal fuses cover ALL markets in which the vault holds assets
+- **How to check**: Compare markets with balance > 0 against markets covered by instant withdrawal fuses
+- **Expected result**: Every market with assets has a corresponding withdrawal fuse
+- **Notes**: Market without a withdrawal fuse = locked funds (assets inaccessible for withdrawal)
 
 ### WS-006: WithdrawManager Connected to Vault
-- **Warunek**: WithdrawManager jest poprawnie polaczony z vaultem
-- **Jak sprawdzic**: Sprawdz storage vaulta + AccessManager role TECH_WITHDRAW_MANAGER_ROLE
-- **Oczekiwany wynik**: WithdrawManager ma TECH_WITHDRAW_MANAGER_ROLE i jest zapisany w vault
+- **Condition**: WithdrawManager is correctly connected to the vault
+- **How to check**: Check vault storage + AccessManager role TECH_WITHDRAW_MANAGER_ROLE
+- **Expected result**: WithdrawManager has TECH_WITHDRAW_MANAGER_ROLE and is stored in vault
 
 ---
 
 ## HIGH
 
 ### WS-010: Withdraw Window Configuration
-- **Warunek**: Withdraw window jest skonfigurowany sensownie
-- **Jak sprawdzic**: `WithdrawManager.getWithdrawWindow()`
-- **Oczekiwany wynik**: Rozsadna wartosc (np. 1 godzina - 7 dni)
-- **Uwagi**: Za krotki = uzytkownicy nie zdzaza; za dlugi = capital inefficiency
+- **Condition**: Withdraw window is configured reasonably
+- **How to check**: `WithdrawManager.getWithdrawWindow()`
+- **Expected result**: Reasonable value (e.g., 1 hour - 7 days)
+- **Notes**: Too short = users can't make it; too long = capital inefficiency
 
 ### WS-011: Request Fee Configuration
-- **Warunek**: Request fee jest sensowna
-- **Jak sprawdzic**: Odczyt request fee z WithdrawManager
-- **Oczekiwany wynik**: Wartosc w WAD (np. 1e15 = 0.1%), musi byc < 100%
-- **Uwagi**: Za wysoki fee odstraszy uzytkownikow
+- **Condition**: Request fee is reasonable
+- **How to check**: Read request fee from WithdrawManager
+- **Expected result**: Value in WAD (e.g., 1e15 = 0.1%), must be < 100%
+- **Notes**: Too high a fee will deter users
 
 ### WS-012: Withdraw Fee Configuration
-- **Warunek**: Withdraw fee jest sensowna
-- **Jak sprawdzic**: Odczyt withdraw fee z WithdrawManager
-- **Oczekiwany wynik**: Wartosc w WAD, musi byc < 100%
-- **Uwagi**: Stosowana do unallocated withdrawals
+- **Condition**: Withdraw fee is reasonable
+- **How to check**: Read withdraw fee from WithdrawManager
+- **Expected result**: Value in WAD, must be < 100%
+- **Notes**: Applied to unallocated withdrawals
 
 ### WS-013: ALPHA Can Release Funds
-- **Warunek**: Konto z ALPHA_ROLE moze wywolac releaseFunds()
-- **Jak sprawdzic**: Sprawdz function-role mapping w AccessManager
-- **Oczekiwany wynik**: releaseFunds() wymaga ALPHA_ROLE
-- **Uwagi**: Bez mozliwosci release = scheduled withdrawals nie dzialaja
+- **Condition**: Account with ALPHA_ROLE can call releaseFunds()
+- **How to check**: Check function-role mapping in AccessManager
+- **Expected result**: releaseFunds() requires ALPHA_ROLE
+- **Notes**: Without the ability to release = scheduled withdrawals don't work
 
 ### WS-014: Withdrawal Attempt Limit
-- **Warunek**: REDEEM_ATTEMPTS (10) jest wystarczajacy dla liczby marketow
-- **Jak sprawdzic**: Ilosc instant withdrawal fuses vs REDEEM_ATTEMPTS constant
-- **Oczekiwany wynik**: Ilosc fuses <= 10
-- **Uwagi**: Vault probuje max 10 razy wyplacic z roznych fuse'ow
+- **Condition**: REDEEM_ATTEMPTS (10) is sufficient for the number of markets
+- **How to check**: Number of instant withdrawal fuses vs REDEEM_ATTEMPTS constant
+- **Expected result**: Number of fuses <= 10
+- **Notes**: Vault tries max 10 times to withdraw from different fuses
 
 ### WS-015: Withdrawal Fuse Duplicate Handling
-- **Warunek**: Ten sam fuse moze wystapic wielokrotnie z roznymi parametrami
-- **Jak sprawdzic**: Sprawdz czy sa duplikaty w getInstantWithdrawalFuses()
-- **Oczekiwany wynik**: Duplikaty sa dopuszczalne (rozne params dla tego samego fuse)
-- **Uwagi**: Np. AaveV3SupplyFuse moze byc 2x - raz dla USDC, raz dla DAI
+- **Condition**: The same fuse can appear multiple times with different parameters
+- **How to check**: Check for duplicates in getInstantWithdrawalFuses()
+- **Expected result**: Duplicates are allowed (different params for the same fuse)
+- **Notes**: E.g., AaveV3SupplyFuse can appear 2x - once for USDC, once for DAI
 
 ---
 
 ## MEDIUM
 
 ### WS-020: Withdrawal Gas Estimation
-- **Warunek**: Withdrawal z najdluzszej sciezki miesci sie w gas limit
-- **Jak sprawdzic**: Estymacja gas dla worst-case withdrawal
-- **Oczekiwany wynik**: Gas < block gas limit
-- **Uwagi**: Zbyt wiele fuse'ow w chain = withdrawal moze failowac
+- **Condition**: Withdrawal via the longest path fits within gas limit
+- **How to check**: Gas estimation for worst-case withdrawal
+- **Expected result**: Gas < block gas limit
+- **Notes**: Too many fuses in the chain = withdrawal may fail
 
 ### WS-021: Slippage on Withdrawal
-- **Warunek**: DEFAULT_SLIPPAGE_IN_PERCENTAGE (2%) jest akceptowalny
-- **Jak sprawdzic**: Stala w kontrakcie
-- **Oczekiwany wynik**: 2% jest sensowne dla danej strategii
-- **Uwagi**: Vault probuje wyplacic `amount + 10` (WITHDRAW_FROM_MARKETS_OFFSET) jako cushion
+- **Condition**: DEFAULT_SLIPPAGE_IN_PERCENTAGE (2%) is acceptable
+- **How to check**: Constant in the contract
+- **Expected result**: 2% is reasonable for the given strategy
+- **Notes**: Vault tries to withdraw `amount + 10` (WITHDRAW_FROM_MARKETS_OFFSET) as a cushion
 
 ### WS-022: Last Release Funds Timestamp
-- **Warunek**: Na produkcji lastReleaseFundsTimestamp jest aktualny
-- **Jak sprawdzic**: `WithdrawManager.getLastReleaseFundsTimestamp()`
-- **Oczekiwany wynik**: Niedawny timestamp (jesli vault jest aktywny)
+- **Condition**: In production, lastReleaseFundsTimestamp is current
+- **How to check**: `WithdrawManager.getLastReleaseFundsTimestamp()`
+- **Expected result**: Recent timestamp (if vault is active)

@@ -1,1 +1,5 @@
 ipor-fusion/
+.env
+reports/
+__pycache__/
+*.pyc

@@ -1,205 +1,205 @@
 # 11 - Checklist Per Market Type
 
-## Cel
-Gotowe checklisty walidacji dla kazdego TYPU marketu dodawanego do vaulta.
-Uzyj odpowiedniej checklisty gdy dodajesz nowy market.
+## Purpose
+Ready-to-use validation checklists for each MARKET TYPE added to the vault.
+Use the appropriate checklist when adding a new market.
 
 ---
 
 ## A. LENDING MARKET (Aave V2/V3/V4, Compound V2/V3, Morpho, Euler, Moonwell, Silo)
 
-### Przed dodaniem:
-- [ ] **LM-01**: Market ID jest poprawny (z IporFusionMarkets.sol)
-- [ ] **LM-02**: Supply fuse zdeployowany z poprawnymi parametrami (pool address, market ID)
-- [ ] **LM-03**: Balance fuse zdeployowany z tym samym market ID
-- [ ] **LM-04**: Substrates zawieraja adresy tokenow ktore vault bedzie supply'owac
-- [ ] **LM-05**: Underlying token vaulta jest jednym z substrate assets
-- [ ] **LM-06**: Supply fuse zarejestrowany w vault (`addFuses()`)
-- [ ] **LM-07**: Balance fuse przypisany do marketu (`addBalanceFuse()`)
+### Before adding:
+- [ ] **LM-01**: Market ID is correct (from IporFusionMarkets.sol)
+- [ ] **LM-02**: Supply fuse deployed with correct parameters (pool address, market ID)
+- [ ] **LM-03**: Balance fuse deployed with the same market ID
+- [ ] **LM-04**: Substrates contain addresses of tokens the vault will supply
+- [ ] **LM-05**: Vault's underlying token is one of the substrate assets
+- [ ] **LM-06**: Supply fuse registered in vault (`addFuses()`)
+- [ ] **LM-07**: Balance fuse assigned to market (`addBalanceFuse()`)
 - [ ] **LM-08**: Substrates granted (`grantMarketSubstrates()`)
 
-### Jesli vault BORROW na tym markecie:
-- [ ] **LM-10**: Borrow fuse zdeployowany i zarejestrowany
-- [ ] **LM-11**: Collateral fuse zdeployowany i zarejestrowany (jesli oddzielny)
-- [ ] **LM-12**: Dependency na ERC20_VAULT_BALANCE (borrow przynosi tokeny do vault)
-- [ ] **LM-13**: Balance fuse uwzglednia debt (supply - borrow = net)
-- [ ] **LM-14**: Market limits uwzgledniaja ryzyko leverage
+### If vault BORROWS on this market:
+- [ ] **LM-10**: Borrow fuse deployed and registered
+- [ ] **LM-11**: Collateral fuse deployed and registered (if separate)
+- [ ] **LM-12**: Dependency on ERC20_VAULT_BALANCE (borrow brings tokens to vault)
+- [ ] **LM-13**: Balance fuse accounts for debt (supply - borrow = net)
+- [ ] **LM-14**: Market limits account for leverage risk
 
 ### Instant withdrawal:
-- [ ] **LM-20**: Supply fuse implementuje `IFuseInstantWithdraw`
-- [ ] **LM-21**: Fuse dodany do instant withdrawal fuses z poprawnymi parametrami
-- [ ] **LM-22**: Parametr params[1+] zawiera asset address do withdrawal
+- [ ] **LM-20**: Supply fuse implements `IFuseInstantWithdraw`
+- [ ] **LM-21**: Fuse added to instant withdrawal fuses with correct parameters
+- [ ] **LM-22**: Parameter params[1+] contains asset address for withdrawal
 
 ### Rewards:
-- [ ] **LM-30**: Claim fuse zarejestrowany w RewardsClaimManager (jesli protocol daje rewards)
-- [ ] **LM-31**: Odpowiednia rola CLAIM_REWARDS_ROLE jest aktywna
+- [ ] **LM-30**: Claim fuse registered in RewardsClaimManager (if protocol gives rewards)
+- [ ] **LM-31**: Appropriate CLAIM_REWARDS_ROLE is active
 
 ### Price Oracle:
-- [ ] **LM-40**: Price feed istnieje dla kazdego supply tokena
-- [ ] **LM-41**: Jesli protokol ma wlasny oracle (Aave) - balance fuse go uzywa poprawnie
+- [ ] **LM-40**: Price feed exists for each supply token
+- [ ] **LM-41**: If protocol has its own oracle (Aave) - balance fuse uses it correctly
 
 ---
 
 ## B. DEX SWAP MARKET (Uniswap V2/V3 swap, Universal Token Swapper, Odos)
 
-### Przed dodaniem:
-- [ ] **SM-01**: Market ID poprawny
-- [ ] **SM-02**: Swap fuse zdeployowany z poprawnymi parametrami (router address)
-- [ ] **SM-03**: Substrates zawieraja WSZYSTKIE tokeny przez ktore vault moze swapowac
-- [ ] **SM-04**: Swap fuse zarejestrowany w vault
+### Before adding:
+- [ ] **SM-01**: Market ID correct
+- [ ] **SM-02**: Swap fuse deployed with correct parameters (router address)
+- [ ] **SM-03**: Substrates contain ALL tokens the vault may swap through
+- [ ] **SM-04**: Swap fuse registered in vault
 - [ ] **SM-05**: Substrates granted
 
 ### Dependencies:
-- [ ] **SM-10**: Dependency na ERC20_VAULT_BALANCE (swap zmienia balance tokenow)
-- [ ] **SM-11**: Jesli swap wplywuwa na inne markety - dependencies sa skonfigurowane
+- [ ] **SM-10**: Dependency on ERC20_VAULT_BALANCE (swap changes token balances)
+- [ ] **SM-11**: If swap affects other markets - dependencies are configured
 
 ### Universal Token Swapper specifics:
-- [ ] **SM-20**: Token substrates: dozwolone tokeny wejscia/wyjscia
-- [ ] **SM-21**: Target substrates: dozwolone DEX aggregatory (adresy)
+- [ ] **SM-20**: Token substrates: allowed input/output tokens
+- [ ] **SM-21**: Target substrates: allowed DEX aggregators (addresses)
 - [ ] **SM-22**: Slippage substrates: max slippage configuration
-- [ ] **SM-23**: Targets sa sprawdzonymi/zaufanymi agregatrami (nie random contracts)
-- [ ] **SM-24**: SwapExecutor adres poprawny
+- [ ] **SM-23**: Targets are verified/trusted aggregators (not random contracts)
+- [ ] **SM-24**: SwapExecutor address correct
 
 ### Price Oracle:
-- [ ] **SM-30**: Price feed dla kazdego tokena w swap path
+- [ ] **SM-30**: Price feed for each token in swap path
 
-### Uwagi:
-- Swap markety zazwyczaj NIE maja balance fuse (ERC20_VAULT_BALANCE sledzi wynik)
-- Swap markety zazwyczaj NIE sa w instant withdrawal fuses
+### Notes:
+- Swap markets usually do NOT have a balance fuse (ERC20_VAULT_BALANCE tracks the result)
+- Swap markets usually are NOT in instant withdrawal fuses
 
 ---
 
 ## C. LP POSITION MARKET (Uniswap V3 positions, Balancer, Curve pool, Aerodrome/Velodrome)
 
-### Przed dodaniem:
-- [ ] **LP-01**: Market ID poprawny
-- [ ] **LP-02**: Position fuse (New/Modify/Collect) zdeployowane z poprawnymi parametrami
-- [ ] **LP-03**: Balance fuse zdeployowany z tym samym market ID
-- [ ] **LP-04**: Substrates zawieraja:
-  - Adresy par tokenow (dla Uniswap V3)
-  - Adresy pooli + tokeny (dla Balancer, Curve)
-  - Adresy gauge + pool (dla Aerodrome/Velodrome)
-- [ ] **LP-05**: Fuses zarejestrowane w vault
-- [ ] **LP-06**: Balance fuse przypisany do marketu
+### Before adding:
+- [ ] **LP-01**: Market ID correct
+- [ ] **LP-02**: Position fuses (New/Modify/Collect) deployed with correct parameters
+- [ ] **LP-03**: Balance fuse deployed with the same market ID
+- [ ] **LP-04**: Substrates contain:
+  - Token pair addresses (for Uniswap V3)
+  - Pool addresses + tokens (for Balancer, Curve)
+  - Gauge + pool addresses (for Aerodrome/Velodrome)
+- [ ] **LP-05**: Fuses registered in vault
+- [ ] **LP-06**: Balance fuse assigned to market
 - [ ] **LP-07**: Substrates granted
 
 ### Dependencies:
-- [ ] **LP-10**: Dependency na ERC20_VAULT_BALANCE (LP zmienia balance tokenow)
-- [ ] **LP-11**: Jesli LP token jest stakowany w gauge - dependency miedzy LP market a gauge market
+- [ ] **LP-10**: Dependency on ERC20_VAULT_BALANCE (LP changes token balances)
+- [ ] **LP-11**: If LP token is staked in gauge - dependency between LP market and gauge market
 
 ### Instant withdrawal:
-- [ ] **LP-20**: Fuse z odpowiednia metoda exit/withdraw
-- [ ] **LP-21**: Fuse dodany do instant withdrawal fuses jesli potrzebny
-- [ ] **LP-22**: Uwzglednij ze withdrawal z LP moze miec slippage
+- [ ] **LP-20**: Fuse with appropriate exit/withdraw method
+- [ ] **LP-21**: Fuse added to instant withdrawal fuses if needed
+- [ ] **LP-22**: Consider that withdrawal from LP may have slippage
 
 ### Price Oracle:
-- [ ] **LP-30**: Price feed dla obu tokenow w parze
-- [ ] **LP-31**: Jesli LP token ma swoj price feed - jest poprawny
+- [ ] **LP-30**: Price feed for both tokens in the pair
+- [ ] **LP-31**: If LP token has its own price feed - it is correct
 
 ### Uniswap V3 specifics:
-- [ ] **LP-40**: NFT position tracking w FuseStorageLib
-- [ ] **LP-41**: Fee tier (500/3000/10000) jest poprawny
-- [ ] **LP-42**: Tick range jest sensowny
-- [ ] **LP-43**: PositionValue.total() poprawnie wycenia pozycje
+- [ ] **LP-40**: NFT position tracking in FuseStorageLib
+- [ ] **LP-41**: Fee tier (500/3000/10000) is correct
+- [ ] **LP-42**: Tick range is reasonable
+- [ ] **LP-43**: PositionValue.total() correctly values positions
 
 ---
 
 ## D. STAKING / GAUGE MARKET (Curve gauge, Aerodrome gauge, Gearbox farm, Fluid staking)
 
-### Przed dodaniem:
-- [ ] **ST-01**: Market ID poprawny
-- [ ] **ST-02**: Staking fuse zdeployowany z poprawnymi parametrami
-- [ ] **ST-03**: Balance fuse zdeployowany
-- [ ] **ST-04**: Substrates zawieraja adresy gauge/staking contractow
-- [ ] **ST-05**: Fuses zarejestrowane
-- [ ] **ST-06**: Balance fuse przypisany
+### Before adding:
+- [ ] **ST-01**: Market ID correct
+- [ ] **ST-02**: Staking fuse deployed with correct parameters
+- [ ] **ST-03**: Balance fuse deployed
+- [ ] **ST-04**: Substrates contain gauge/staking contract addresses
+- [ ] **ST-05**: Fuses registered
+- [ ] **ST-06**: Balance fuse assigned
 - [ ] **ST-07**: Substrates granted
 
 ### Dependencies:
-- [ ] **ST-10**: Dependency na market z ktorego pochodzi stakowany token
+- [ ] **ST-10**: Dependency on the market from which the staked token originates
   - Curve gauge → Curve pool market
   - Aerodrome gauge → Aerodrome liquidity market
   - Gearbox farm → Gearbox pool market
   - Fluid staking → Fluid pool market
-- [ ] **ST-11**: Jesli unstake wplywuwa na vault balance → dependency na ERC20_VAULT_BALANCE
+- [ ] **ST-11**: If unstake affects vault balance → dependency on ERC20_VAULT_BALANCE
 
 ### Instant withdrawal:
-- [ ] **ST-20**: Unstake fuse w instant withdrawal fuses (jesli potrzebny)
-- [ ] **ST-21**: Kolejnosc: najpierw unstake z gauge, potem withdraw z LP
+- [ ] **ST-20**: Unstake fuse in instant withdrawal fuses (if needed)
+- [ ] **ST-21**: Order: first unstake from gauge, then withdraw from LP
 
 ### Rewards:
-- [ ] **ST-30**: Gauge/staking generuje rewards → claim fuse skonfigurowany
-- [ ] **ST-31**: Rewards claim fuse w RewardsClaimManager
+- [ ] **ST-30**: Gauge/staking generates rewards → claim fuse configured
+- [ ] **ST-31**: Rewards claim fuse in RewardsClaimManager
 
 ---
 
 ## E. YIELD PROTOCOL MARKET (Pendle, Gearbox, Midas, ERC4626 vaults)
 
-### Przed dodaniem:
-- [ ] **YP-01**: Market ID poprawny
-- [ ] **YP-02**: Supply/Swap fuse zdeployowany z poprawnymi parametrami
-- [ ] **YP-03**: Balance fuse zdeployowany
-- [ ] **YP-04**: Substrates zawieraja adresy marketow/vaultow protokolu
-- [ ] **YP-05**: Fuses zarejestrowane i balance fuse przypisany
+### Before adding:
+- [ ] **YP-01**: Market ID correct
+- [ ] **YP-02**: Supply/Swap fuse deployed with correct parameters
+- [ ] **YP-03**: Balance fuse deployed
+- [ ] **YP-04**: Substrates contain protocol market/vault addresses
+- [ ] **YP-05**: Fuses registered and balance fuse assigned
 - [ ] **YP-06**: Substrates granted
 
 ### Pendle specifics:
-- [ ] **YP-10**: Pendle market address jest poprawny i aktywny
-- [ ] **YP-11**: SY token, PT token sa sprawdzone
-- [ ] **YP-12**: Expiry date Pendle marketu jest w przyszlosci (chyba ze redeem)
-- [ ] **YP-13**: GuessedPtOut parametry sa rozsadne
+- [ ] **YP-10**: Pendle market address is correct and active
+- [ ] **YP-11**: SY token, PT token are verified
+- [ ] **YP-12**: Pendle market expiry date is in the future (unless redeem)
+- [ ] **YP-13**: GuessedPtOut parameters are reasonable
 
 ### ERC4626 vault specifics:
-- [ ] **YP-20**: Vault address jest poprawny i zweryfikowany
-- [ ] **YP-21**: Underlying token external vault == oczekiwany token
-- [ ] **YP-22**: ERC4626PriceFeed skonfigurowany dla share tokena
+- [ ] **YP-20**: Vault address is correct and verified
+- [ ] **YP-21**: External vault underlying token == expected token
+- [ ] **YP-22**: ERC4626PriceFeed configured for the share token
 
 ### Dependencies:
-- [ ] **YP-30**: Dependency na ERC20_VAULT_BALANCE jesli operacja zmienia vault balance
+- [ ] **YP-30**: Dependency on ERC20_VAULT_BALANCE if operation changes vault balance
 
 ---
 
 ## F. FLASH LOAN MARKET (Morpho Flash Loan)
 
-### Przed dodaniem:
+### Before adding:
 - [ ] **FL-01**: Market ID = MORPHO_FLASH_LOAN
-- [ ] **FL-02**: Flash loan fuse zdeployowany z poprawnym MORPHO address
-- [ ] **FL-03**: Fuse zarejestrowany w vault
-- [ ] **FL-04**: Callback handlers skonfigurowane dla flash loan callback
-- [ ] **FL-05**: Flash loan jest uzywany TYLKO w ramach execute() (nie standalone)
+- [ ] **FL-02**: Flash loan fuse deployed with correct MORPHO address
+- [ ] **FL-03**: Fuse registered in vault
+- [ ] **FL-04**: Callback handlers configured for flash loan callback
+- [ ] **FL-05**: Flash loan is used ONLY within execute() (not standalone)
 
 ---
 
 ## G. SPECIAL MARKETS
 
 ### ERC20_VAULT_BALANCE (Balance Only):
-- [ ] **SP-01**: Erc20BalanceFuse przypisany jako balance fuse
-- [ ] **SP-02**: Market ID = 7 (ERC20_VAULT_BALANCE z IporFusionMarkets.sol)
-- [ ] **SP-03**: Ten market ZAWSZE musi istniec w vaulcie - sledzi natywny balance underlying tokena
+- [ ] **SP-01**: Erc20BalanceFuse assigned as balance fuse
+- [ ] **SP-02**: Market ID = 7 (ERC20_VAULT_BALANCE from IporFusionMarkets.sol)
+- [ ] **SP-03**: This market MUST ALWAYS exist in the vault - tracks native underlying token balance
 
 ### ZERO_BALANCE_MARKET:
-- [ ] **SP-10**: ZeroBalanceFuse przypisany (jesli uzywany)
-- [ ] **SP-11**: Uzywanego do marketow ktore celowo maja balance 0
+- [ ] **SP-10**: ZeroBalanceFuse assigned (if used)
+- [ ] **SP-11**: Used for markets that intentionally have balance 0
 
 ### ASSETS_BALANCE_VALIDATION:
-- [ ] **SP-20**: PlasmaVaultBalanceAssetsValidationFuse (jesli uzywany)
-- [ ] **SP-21**: Walidacja integralnosci assetow
+- [ ] **SP-20**: PlasmaVaultBalanceAssetsValidationFuse (if used)
+- [ ] **SP-21**: Asset integrity validation
 
 ---
 
-## PODSUMOWANIE - UNIWERSALNY CHECKLIST PER MARKET
+## SUMMARY - UNIVERSAL CHECKLIST PER MARKET
 
-Niezaleznie od typu marketu, ZAWSZE sprawdz:
+Regardless of market type, ALWAYS check:
 
-| # | Co sprawdzic | Jak |
-|---|-------------|-----|
-| 1 | Market ID poprawny | `IFuseCommon(fuse).MARKET_ID()` |
-| 2 | Balance fuse przypisany | `isBalanceFuseSupported(marketId, fuse)` |
-| 3 | Supply/interaction fuses zarejestrowane | `isFuseSupported(fuse)` |
+| # | What to check | How |
+|---|--------------|-----|
+| 1 | Market ID correct | `IFuseCommon(fuse).MARKET_ID()` |
+| 2 | Balance fuse assigned | `isBalanceFuseSupported(marketId, fuse)` |
+| 3 | Supply/interaction fuses registered | `isFuseSupported(fuse)` |
 | 4 | Substrates granted | `getMarketSubstrates(marketId)` |
-| 5 | Substrates poprawne | Dekoduj i porownaj z oczekiwanymi |
-| 6 | Dependencies skonfigurowane | `getDependencyBalanceGraph(marketId)` |
-| 7 | Instant withdrawal (jesli potrzebny) | `getInstantWithdrawalFuses()` |
-| 8 | Market limits (jesli aktywne) | `getMarketLimit(marketId)` |
-| 9 | Price feeds dla assetow | `getAssetPrice(asset)` |
-| 10 | Reward claim fuse (jesli rewards) | `rewardsManager.getRewardsFuses()` |
+| 5 | Substrates correct | Decode and compare with expected |
+| 6 | Dependencies configured | `getDependencyBalanceGraph(marketId)` |
+| 7 | Instant withdrawal (if needed) | `getInstantWithdrawalFuses()` |
+| 8 | Market limits (if active) | `getMarketLimit(marketId)` |
+| 9 | Price feeds for assets | `getAssetPrice(asset)` |
+| 10 | Reward claim fuse (if rewards) | `rewardsManager.getRewardsFuses()` |

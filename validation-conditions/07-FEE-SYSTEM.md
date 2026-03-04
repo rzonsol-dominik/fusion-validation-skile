@@ -1,144 +1,144 @@
 # 07 - Fee System Validation
 
-## Cel
-Weryfikacja konfiguracji oplat: performance fee, management fee, deposit fee.
+## Purpose
+Verify fee configuration: performance fee, management fee, deposit fee.
 
 ---
 
-## Stale systemowe
+## System Constants
 
-| Stala | Wartosc | Opis |
-|-------|---------|------|
+| Constant | Value | Description |
+|----------|-------|-------------|
 | PERFORMANCE_MAX_FEE_IN_PERCENTAGE | 5000 | Max 50% (100 = 1%, 2 decimal precision) |
 | MANAGEMENT_MAX_FEE_IN_PERCENTAGE | 500 | Max 5% (100 = 1%, 2 decimal precision) |
 | Deposit Fee | 18 decimal precision | 1e18 = 100%, 1e16 = 1% |
 
-### Typy oplat:
-- **Performance Fee**: Naliczana przy wzroscie totalAssets (high water mark). Precyzja: 2 decimale (10000 = 100%).
-- **Management Fee**: Naliczana ciagle proporcjonalnie do czasu i totalAssets. Precyzja: 2 decimale (10000 = 100%).
-- **Deposit Fee**: Naliczana przy depozycie, potrącana z mintowanych shares. Precyzja: 18 decimali (1e18 = 100%).
+### Fee types:
+- **Performance Fee**: Charged on totalAssets growth (high water mark). Precision: 2 decimals (10000 = 100%).
+- **Management Fee**: Charged continuously proportional to time and totalAssets. Precision: 2 decimals (10000 = 100%).
+- **Deposit Fee**: Charged on deposit, deducted from minted shares. Precision: 18 decimals (1e18 = 100%).
 
 ---
 
 ## CRITICAL
 
 ### FE-001: Performance Fee Account
-- **Warunek**: Performance fee account jest poprawny i aktywny
-- **Jak sprawdzic**: `PlasmaVaultGovernance.getPerformanceFeeData()`
-- **Oczekiwany wynik**: `feeAccount` != address(0) i jest oczekiwanym adresem FeeManager
-- **Uwagi**: address(0) = fees ida donikad; bledny adres = fees idaz do kogosinnego
+- **Condition**: Performance fee account is correct and active
+- **How to check**: `PlasmaVaultGovernance.getPerformanceFeeData()`
+- **Expected result**: `feeAccount` != address(0) and is the expected FeeManager address
+- **Notes**: address(0) = fees go nowhere; wrong address = fees go to someone else
 
 ### FE-002: Performance Fee Percentage
-- **Warunek**: Performance fee jest <= 50% i zgodna z zamierzeniem
-- **Jak sprawdzic**: `getPerformanceFeeData().feeInPercentage`
-- **Oczekiwany wynik**: Wartosc <= 5000 i zgodna z dokumentacja vaulta
-- **Uwagi**: 100 = 1%, 5000 = 50% max
+- **Condition**: Performance fee is <= 50% and matches intended value
+- **How to check**: `getPerformanceFeeData().feeInPercentage`
+- **Expected result**: Value <= 5000 and consistent with vault documentation
+- **Notes**: 100 = 1%, 5000 = 50% max
 
 ### FE-003: Management Fee Account
-- **Warunek**: Management fee account jest poprawny
-- **Jak sprawdzic**: `PlasmaVaultGovernance.getManagementFeeData()`
-- **Oczekiwany wynik**: `feeAccount` != address(0) i jest oczekiwanym adresem
-- **Uwagi**: Management fee jest naliczana ciagle
+- **Condition**: Management fee account is correct
+- **How to check**: `PlasmaVaultGovernance.getManagementFeeData()`
+- **Expected result**: `feeAccount` != address(0) and is the expected address
+- **Notes**: Management fee is charged continuously
 
 ### FE-004: Management Fee Percentage
-- **Warunek**: Management fee jest <= 5% i zgodna z zamierzeniem
-- **Jak sprawdzic**: `getManagementFeeData().feeInPercentage`
-- **Oczekiwany wynik**: Wartosc <= 500 i zgodna z dokumentacja
-- **Uwagi**: 100 = 1%, 500 = 5% max
+- **Condition**: Management fee is <= 5% and matches intended value
+- **How to check**: `getManagementFeeData().feeInPercentage`
+- **Expected result**: Value <= 500 and consistent with documentation
+- **Notes**: 100 = 1%, 500 = 5% max
 
 ### FE-005: Fee Manager Initialization
-- **Warunek**: FeeManager jest zainicjalizowany
-- **Jak sprawdzic**: Sprawdz initialization flag FeeManager
-- **Oczekiwany wynik**: Zainicjalizowany, nie mozna ponownie
-- **Uwagi**: Niezainicjalizowany FeeManager = fees nie dzialaja poprawnie
+- **Condition**: FeeManager is initialized
+- **How to check**: Check FeeManager initialization flag
+- **Expected result**: Initialized, cannot be re-initialized
+- **Notes**: Uninitialized FeeManager = fees don't work correctly
 
 ---
 
 ## HIGH
 
 ### FE-010: FeeManager Recipients
-- **Warunek**: Fee recipients sa poprawnie skonfigurowane w FeeManagerze
-- **Jak sprawdzic**: Odczyt recipients z FeeManager
-- **Oczekiwany wynik**:
-  - DAO fee recipient = poprawny adres IPOR DAO
-  - Dodatkowi recipients = zgodne z umowa/dokumentacja
-- **Uwagi**: Fee jest dzielone miedzy DAO i dodatkowych recipientow
+- **Condition**: Fee recipients are correctly configured in FeeManager
+- **How to check**: Read recipients from FeeManager
+- **Expected result**:
+  - DAO fee recipient = correct IPOR DAO address
+  - Additional recipients = consistent with agreement/documentation
+- **Notes**: Fee is split between DAO and additional recipients
 
 ### FE-011: DAO Fee Values
-- **Warunek**: IPOR DAO fee jest ustawione poprawnie
-- **Jak sprawdzic**: Odczyt IPOR_DAO_PERFORMANCE_FEE i IPOR_DAO_MANAGEMENT_FEE z FeeManager
-- **Oczekiwany wynik**: Zgodne z governance decision
-- **Uwagi**: Immutable po deploy - ustalone w FeeManagerFactory
+- **Condition**: IPOR DAO fee is set correctly
+- **How to check**: Read IPOR_DAO_PERFORMANCE_FEE and IPOR_DAO_MANAGEMENT_FEE from FeeManager
+- **Expected result**: Consistent with governance decision
+- **Notes**: Immutable after deploy - set in FeeManagerFactory
 
 ### FE-012: Total Fee Not Exceeding Max
-- **Warunek**: Suma performance fee (DAO + recipients) nie przekracza max
-- **Jak sprawdzic**: `totalPerformanceFee = daoFee + sum(recipientFees)` <= 5000
-- **Oczekiwany wynik**: <= 5000 (50%)
-- **Uwagi**: Analogicznie dla management fee <= 500
+- **Condition**: Total performance fee (DAO + recipients) does not exceed max
+- **How to check**: `totalPerformanceFee = daoFee + sum(recipientFees)` <= 5000
+- **Expected result**: <= 5000 (50%)
+- **Notes**: Similarly for management fee <= 500
 
 ### FE-013: Management Fee Timestamp
-- **Warunek**: lastUpdateTimestamp w management fee jest aktualny
-- **Jak sprawdzic**: `getManagementFeeData().lastUpdateTimestamp`
-- **Oczekiwany wynik**: Niedawny timestamp
-- **Uwagi**: Stary timestamp = duze narosle fees przy nastepnej operacji
+- **Condition**: lastUpdateTimestamp in management fee is current
+- **How to check**: `getManagementFeeData().lastUpdateTimestamp`
+- **Expected result**: Recent timestamp
+- **Notes**: Stale timestamp = large accrued fees on next operation
 
 ### FE-014: Fee Manager -> Vault Connection
-- **Warunek**: FeeManager jest polaczony z poprawnym vaultem
-- **Jak sprawdzic**: Odczyt PlasmaVault address z FeeManager
-- **Oczekiwany wynik**: Adres vaulta
-- **Uwagi**: Bledne polaczenie = fees nie beda mintowane
+- **Condition**: FeeManager is connected to the correct vault
+- **How to check**: Read PlasmaVault address from FeeManager
+- **Expected result**: Vault address
+- **Notes**: Incorrect connection = fees won't be minted
 
 ### FE-015: TECH Fee Roles Assignment
-- **Warunek**: TECH_PERFORMANCE_FEE_MANAGER_ROLE i TECH_MANAGEMENT_FEE_MANAGER_ROLE sa przypisane TYLKO do FeeManagera
-- **Jak sprawdzic**: Sprawdz holderow tych rol w AccessManager
-- **Oczekiwany wynik**: Tylko FeeManager ma te role
-- **Uwagi**: Nieautoryzowany holder moze zmienic fee konfiguracje
+- **Condition**: TECH_PERFORMANCE_FEE_MANAGER_ROLE and TECH_MANAGEMENT_FEE_MANAGER_ROLE are assigned ONLY to FeeManager
+- **How to check**: Check holders of these roles in AccessManager
+- **Expected result**: Only FeeManager has these roles
+- **Notes**: Unauthorized holder can change fee configuration
 
 ---
 
 ## MEDIUM
 
 ### FE-020: Unrealized Management Fee
-- **Warunek**: Unrealized management fee jest rozsadna
-- **Jak sprawdzic**: `PlasmaVault.getUnrealizedManagementFee()`
-- **Oczekiwany wynik**: Wartosc proporcjonalna do totalAssets * fee% * czas
-- **Uwagi**: Bardzo duza wartosc moze wskazywac na problem
+- **Condition**: Unrealized management fee is reasonable
+- **How to check**: `PlasmaVault.getUnrealizedManagementFee()`
+- **Expected result**: Value proportional to totalAssets * fee% * time
+- **Notes**: Very large value may indicate a problem
 
 ### FE-021: Performance Fee Only on Profit
-- **Warunek**: Performance fee jest naliczana TYLKO przy wzroscie totalAssets
-- **Jak sprawdzic**: Weryfikacja logiki w execute() - fee mintowane tylko gdy totalAssetsAfter > totalAssetsBefore
-- **Oczekiwany wynik**: Brak fee mintowania przy stratach
-- **Uwagi**: Wbudowane w kontrakt
+- **Condition**: Performance fee is charged ONLY on totalAssets growth
+- **How to check**: Verify logic in execute() - fee minted only when totalAssetsAfter > totalAssetsBefore
+- **Expected result**: No fee minting on losses
+- **Notes**: Built into the contract
 
 ### FE-022: Zero Fee Config (if intended)
-- **Warunek**: Jesli vault ma byc zero-fee - wszystkie fee sa 0
-- **Jak sprawdzic**: getPerformanceFeeData, getManagementFeeData, FeeManager.getDepositFee()
-- **Oczekiwany wynik**: feeInPercentage == 0 dla wszystkich trzech typow
+- **Condition**: If vault should be zero-fee - all fees are 0
+- **How to check**: getPerformanceFeeData, getManagementFeeData, FeeManager.getDepositFee()
+- **Expected result**: feeInPercentage == 0 for all three types
 
 ---
 
 ## DEPOSIT FEE
 
 ### FE-030: Deposit Fee Value
-- **Warunek**: Deposit fee jest ustawiony na sensowna wartosc
-- **Jak sprawdzic**: `FeeManager.getDepositFee()`
-- **Oczekiwany wynik**: Wartosc zgodna z zamierzeniem (0 jesli brak oplat, np. 1e16 = 1%)
-- **Uwagi**: Precyzja 18 decimali (1e18 = 100%). Zbyt wysoka wartosc = odstraszanie deponentow
+- **Condition**: Deposit fee is set to a reasonable value
+- **How to check**: `FeeManager.getDepositFee()`
+- **Expected result**: Value consistent with intent (0 if no fees, e.g., 1e16 = 1%)
+- **Notes**: Precision is 18 decimals (1e18 = 100%). Too high = deters depositors
 
 ### FE-031: Deposit Fee Calculation
-- **Warunek**: Deposit fee jest poprawnie potrącana z mintowanych shares
-- **Jak sprawdzic**: `FeeManager.calculateDepositFee(shares)` - powinno zwrocic `shares * depositFee / 1e18`
-- **Oczekiwany wynik**: Wartosc proporcjonalna do shares i deposit fee
-- **Uwagi**: Fee jest potrącana z shares (deponent dostaje mniej shares)
+- **Condition**: Deposit fee is correctly deducted from minted shares
+- **How to check**: `FeeManager.calculateDepositFee(shares)` - should return `shares * depositFee / 1e18`
+- **Expected result**: Value proportional to shares and deposit fee
+- **Notes**: Fee is deducted from shares (depositor receives fewer shares)
 
 ### FE-032: Deposit Fee Mutability
-- **Warunek**: Deposit fee moze byc zmieniony przez ATOMIST_ROLE
-- **Jak sprawdzic**: `FeeManager.setDepositFee()` wymaga odpowiedniej roli
-- **Oczekiwany wynik**: Tylko ATOMIST moze zmieniac deposit fee
-- **Uwagi**: W przeciwienstwie do DAO fees (immutable), deposit fee jest mutable
+- **Condition**: Deposit fee can be changed by ATOMIST_ROLE
+- **How to check**: `FeeManager.setDepositFee()` requires the appropriate role
+- **Expected result**: Only ATOMIST can change deposit fee
+- **Notes**: Unlike DAO fees (immutable), deposit fee is mutable
 
 ### FE-033: Deposit Fee Max Guard
-- **Warunek**: Deposit fee nie przekracza rozsadnej wartosci
-- **Jak sprawdzic**: `FeeManager.getDepositFee()` < 1e18
-- **Oczekiwany wynik**: Wartosc znacznie ponizej 1e18 (100%). Kod pozwala na max 1e18 bez ograniczenia gornego!
-- **Uwagi**: Brak hardcoded max w kontrakcie - ATOMIST moze ustawic dowolna wartosc do 1e18. Walidacja manualna wymagana
+- **Condition**: Deposit fee does not exceed a reasonable value
+- **How to check**: `FeeManager.getDepositFee()` < 1e18
+- **Expected result**: Value well below 1e18 (100%). Code allows max 1e18 without an upper limit!
+- **Notes**: No hardcoded max in the contract - ATOMIST can set any value up to 1e18. Manual validation required
